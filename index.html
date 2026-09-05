@@ -53,11 +53,13 @@
   #bootSplash{
     position:fixed; inset:0; z-index:9999;
     background: linear-gradient(160deg, var(--navy-deep), var(--indigo));
-    display:flex; align-items:center; justify-content:center;
+    display:none; align-items:center; justify-content:center;
     flex-direction:column; gap:18px;
-    transition: opacity .45s ease, visibility .45s ease;
+    opacity:0;
+    transition: opacity .35s ease;
   }
-  #bootSplash.hide{ opacity:0; visibility:hidden; pointer-events:none; }
+  #bootSplash.visible{ display:flex; }
+  #bootSplash.show-opacity{ opacity:1; }
   #bootSplash .boot-logo{
     width:74px; height:74px; border-radius:20px;
     background:#fff; display:flex; align-items:center; justify-content:center;
@@ -184,7 +186,7 @@
     display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
   }
   .app-header-left{ display:flex; align-items:center; gap:12px; }
-  .app-header-left .logo-badge{ width:44px; height:44px; border-radius:12px; margin:0; box-shadow:none; background: rgba(255,255,255,0.12); padding:7px; }
+  .app-header-left .logo-badge{ width:44px; height:44px; border-radius:12px; margin:0; box-shadow: 0 4px 12px rgba(0,0,0,0.18); background: #fff; padding:7px; }
 
   .app-header-titles p{ margin:0; font-size:11.5px; letter-spacing:0.06em; text-transform:uppercase; color:#AEBBE8; font-weight:700; }
   .app-header-titles h1{ margin:2px 0 0; font-size:17px; font-weight:700; }
@@ -487,46 +489,52 @@
 </div>
 
 <script src="logos.js"></script>
-<script src="app.js"></script>
 <script>
-  // ---- Boot splash: puramente visual, no depende de app.js ----
+  // ---- Logos: se colocan apenas el DOM existe (no dependen de app.js) ----
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!window.SUCDEN_LOGOS) return;
+    var badge  = document.getElementById('loginBadgeImg');
+    var header = document.getElementById('headerBadgeImg');
+    var boot   = document.getElementById('bootLogoImg');
+    var banner = document.getElementById('brandBannerImg');
+    if (badge)  badge.src  = window.SUCDEN_LOGOS.squared;
+    if (header) header.src = window.SUCDEN_LOGOS.squared;
+    if (boot)   boot.src   = window.SUCDEN_LOGOS.squared;
+    if (banner) banner.src = window.SUCDEN_LOGOS.wide;
+  });
+
+  // ---- Pantalla de carga (splash) ----
+  // NO se muestra al abrir la página. Solo se activa cuando app.js la llama
+  // (por ejemplo, justo después de que el usuario envía usuario/contraseña),
+  // y se oculta cuando app.js termina esa operación.
   (function () {
-    var MIN_VISIBLE_MS = 800;
-    var start = Date.now();
+    var MIN_VISIBLE_MS = 500;
+    var shownAt = 0;
 
-    // Coloca los logos (definidos en logos.js) en cuanto el DOM está listo
-    if (window.SUCDEN_LOGOS) {
-      var badge = document.getElementById('loginBadgeImg');
-      var header = document.getElementById('headerBadgeImg');
-      var boot = document.getElementById('bootLogoImg');
-      var banner = document.getElementById('brandBannerImg');
-      if (badge)  badge.src  = window.SUCDEN_LOGOS.squared;
-      if (header) header.src = window.SUCDEN_LOGOS.squared;
-      if (boot)   boot.src   = window.SUCDEN_LOGOS.squared;
-      if (banner) banner.src = window.SUCDEN_LOGOS.wide;
-    }
-
-    function hideSplash() {
+    window.showBootSplash = function (message) {
       var el = document.getElementById('bootSplash');
       if (!el) return;
-      el.classList.add('hide');
-      setTimeout(function () { el.remove(); }, 500);
-    }
+      var p = el.querySelector('.boot-text p');
+      if (p) p.textContent = message || 'Cargando, un momento…';
+      shownAt = Date.now();
+      el.classList.add('visible');
+      // truco: forzar reflow para que la transición de opacidad sí anime
+      void el.offsetWidth;
+      el.classList.add('show-opacity');
+    };
 
-    function whenReady() {
-      var elapsed = Date.now() - start;
+    window.hideBootSplash = function () {
+      var el = document.getElementById('bootSplash');
+      if (!el) return;
+      var elapsed = Date.now() - shownAt;
       var wait = Math.max(0, MIN_VISIBLE_MS - elapsed);
-      setTimeout(hideSplash, wait);
-    }
-
-    if (document.readyState === 'complete') {
-      whenReady();
-    } else {
-      window.addEventListener('load', whenReady);
-    }
-    // Salvavidas: nunca dejar el splash más de 6s aunque algo falle
-    setTimeout(hideSplash, 6000);
+      setTimeout(function () {
+        el.classList.remove('show-opacity');
+        setTimeout(function () { el.classList.remove('visible'); }, 350);
+      }, wait);
+    };
   })();
 </script>
+<script src="app.js"></script>
 </body>
 </html>
