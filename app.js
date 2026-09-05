@@ -51,6 +51,13 @@ function startClock() {
 
 function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
+/* ------------------------- PANTALLA DE CARGA (splash) -------------------------
+ * showBootSplash()/hideBootSplash() viven en index.html. Se llaman de forma
+ * defensiva (solo si existen) para que app.js nunca truene si alguien usa
+ * un index.html distinto que no las defina. */
+function splashShow(msg) { if (window.showBootSplash) window.showBootSplash(msg); }
+function splashHide() { if (window.hideBootSplash) window.hideBootSplash(); }
+
 /* ------------------------- POLÍTICA DE DATOS ------------------------- */
 
 function setupPolicyModal() {
@@ -101,6 +108,7 @@ function setupLogin() {
     const clave = document.getElementById('loginClave').value;
 
     setButtonLoading(btn, label, 'Ingresando…', true);
+    splashShow('Verificando tus datos…');
     try {
       const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'login', cedula, clave }) });
       const data = await res.json();
@@ -113,6 +121,7 @@ function setupLogin() {
       statusEl.textContent = err.message;
     } finally {
       setButtonLoading(btn, label, '', false, 'Ingresar al sistema');
+      splashHide();
     }
   });
 
