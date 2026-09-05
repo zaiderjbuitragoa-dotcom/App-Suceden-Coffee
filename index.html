@@ -306,8 +306,7 @@
     <div class="brand-banner-inner"><img id="brandBannerImg" src="" alt="S&amp;D Sucden Coffee"></div>
   </div>
   <div class="login-card">
-    <div class="logo-badge"><img id="loginBadgeImg" src="" alt="S&amp;D Sucden"></div>
-    <h1 id="loginTitle">Bienvenido</h1>
+    <h1 id="loginTitle" style="margin-top:2px;">Bienvenido</h1>
     <p class="sub" id="loginSub">App de reporte de despachos — S&amp;D Sucden</p>
 
     <div class="clock-box">
@@ -493,11 +492,9 @@
   // ---- Logos: se colocan apenas el DOM existe (no dependen de app.js) ----
   document.addEventListener('DOMContentLoaded', function () {
     if (!window.SUCDEN_LOGOS) return;
-    var badge  = document.getElementById('loginBadgeImg');
     var header = document.getElementById('headerBadgeImg');
     var boot   = document.getElementById('bootLogoImg');
     var banner = document.getElementById('brandBannerImg');
-    if (badge)  badge.src  = window.SUCDEN_LOGOS.squared;
     if (header) header.src = window.SUCDEN_LOGOS.squared;
     if (boot)   boot.src   = window.SUCDEN_LOGOS.squared;
     if (banner) banner.src = window.SUCDEN_LOGOS.wide;
