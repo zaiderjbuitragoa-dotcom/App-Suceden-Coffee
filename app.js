@@ -167,6 +167,7 @@ function showApp() {
   document.getElementById('appScreen').style.display = 'block';
   document.getElementById('greetingText').textContent = 'Hola, ' + currentUser.nombre;
   document.getElementById('fecha').valueAsDate = new Date();
+  prefillResponsable();
 
   if (currentUser.rol === 'admin') {
     document.getElementById('adminBtn').style.display = 'inline-flex';
@@ -174,6 +175,17 @@ function showApp() {
 
   goToHub();
   refreshHubCounts();
+}
+
+/* Autocompleta "Responsable del despacho" con el nombre de quien inició
+ * sesión (es quien está reportando). Solo llena si el campo está vacío,
+ * así no pisa el valor cuando se está EDITANDO un reporte de otra persona
+ * (startEdit ya deja ahí el responsable original de ese reporte). */
+function prefillResponsable() {
+  const el = document.getElementById('responsable');
+  if (el && currentUser && currentUser.nombre && !el.value) {
+    el.value = currentUser.nombre;
+  }
 }
 
 function logout() {
@@ -196,6 +208,9 @@ function setupApp() {
   });
   document.getElementById('backFromAdmin').addEventListener('click', goToHub);
   document.getElementById('backToHub').addEventListener('click', goToHub);
+  const floatBtn = document.getElementById('floatingBack');
+  if (floatBtn) floatBtn.addEventListener('click', goToHub);
+  setupLightbox();
 
   document.querySelectorAll('.hub-card').forEach(card => {
     card.addEventListener('click', () => openGroup(card.dataset.group));
@@ -249,6 +264,8 @@ function showSection(name) {
   document.getElementById('panel-hub').style.display = name === 'hub' ? 'block' : 'none';
   document.getElementById('panel-group').style.display = name === 'group' ? 'block' : 'none';
   document.getElementById('panel-admin').style.display = name === 'admin' ? 'block' : 'none';
+  const floatBtn = document.getElementById('floatingBack');
+  if (floatBtn) floatBtn.classList.toggle('show', name !== 'hub');
 }
 
 function goToHub() {
@@ -266,6 +283,7 @@ function openGroup(group) {
   document.querySelector('.tab[data-tab="form"]').classList.add('active');
   document.getElementById('panel-form').classList.add('active');
   cancelEdit();
+  prefillResponsable();
 }
 
 async function refreshHubCounts() {
@@ -360,6 +378,7 @@ function resetForm() {
   document.getElementById('extraThumbs').innerHTML = '';
   extraFilesData = [];
   cancelEdit();
+  prefillResponsable();
 }
 
 function startEdit(rec) {
@@ -391,6 +410,37 @@ function toDateInputValue(value) {
   const d = new Date(value);
   if (isNaN(d)) return '';
   return d.toISOString().split('T')[0];
+}
+
+/* ------------------------- LIGHTBOX (ampliar imagen) ------------------------- */
+
+function setupLightbox() {
+  const overlay = document.getElementById('imgLightbox');
+  const closeBtn = document.getElementById('lightboxClose');
+  if (!overlay || !closeBtn) return;
+  closeBtn.addEventListener('click', closeLightbox);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeLightbox();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeLightbox();
+  });
+}
+
+function openLightbox(viewUrl, downloadUrl, name) {
+  const overlay = document.getElementById('imgLightbox');
+  const img = document.getElementById('lightboxImg');
+  const dl = document.getElementById('lightboxDl');
+  if (!overlay || !img) return;
+  img.src = viewUrl;
+  img.alt = name || '';
+  if (dl) { dl.href = downloadUrl || viewUrl; dl.download = name || ''; }
+  overlay.classList.add('open');
+}
+
+function closeLightbox() {
+  const overlay = document.getElementById('imgLightbox');
+  if (overlay) overlay.classList.remove('open');
 }
 
 /* ------------------------- GALERÍA ------------------------- */
@@ -467,9 +517,30 @@ async function loadImages(reportId, bodyEl, rec) {
       data.images.forEach(img => {
         const cell = document.createElement('div');
         cell.className = 'img-cell';
-        cell.innerHTML =
-          '<img src="' + img.viewUrl + '" alt="' + escapeHtml(img.name) + '" loading="lazy">' +
-          '<a class="dl" href="' + img.downloadUrl + '" download="' + escapeHtml(img.name) + '">Descargar</a>';
+
+        const imgEl = document.createElement('img');
+        imgEl.src = img.viewUrl;
+        imgEl.alt = img.name;
+        imgEl.loading = 'lazy';
+        imgEl.addEventListener('click', () => openLightbox(img.viewUrl, img.downloadUrl, img.name));
+        imgEl.addEventListener('error', () => {
+          cell.classList.add('img-error');
+          if (!cell.querySelector('.img-fallback')) {
+            const fallback = document.createElement('div');
+            fallback.className = 'img-fallback';
+            fallback.textContent = 'No se pudo mostrar la vista previa. Usa "Descargar" para verla.';
+            cell.insertBefore(fallback, imgEl);
+          }
+        });
+        cell.appendChild(imgEl);
+
+        const dl = document.createElement('a');
+        dl.className = 'dl';
+        dl.href = img.downloadUrl;
+        dl.setAttribute('download', img.name);
+        dl.textContent = 'Descargar';
+        cell.appendChild(dl);
+
         grid.appendChild(cell);
       });
       bodyEl.appendChild(grid);
