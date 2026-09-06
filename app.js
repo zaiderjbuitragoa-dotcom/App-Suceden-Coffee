@@ -747,7 +747,16 @@ function formatDate(value) {
   if (!value) return '';
   const d = new Date(value);
   if (isNaN(d)) return String(value);
-  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+  // IMPORTANTE: las fechas se guardan como "solo fecha" (medianoche UTC),
+  // no como un instante real. Si se formatean con toLocaleDateString()
+  // directamente, JavaScript aplica la zona horaria LOCAL del navegador
+  // (en Colombia, UTC-5) y la fecha se corre un día hacia atrás — por
+  // ejemplo, un registro del 5 de septiembre se mostraba como "04 de
+  // sept". Por eso aquí se arma una fecha nueva a partir de los
+  // componentes UTC (año/mes/día), ignorando la hora, para que se
+  // muestre el mismo día calendario que quedó guardado.
+  const soloFecha = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  return soloFecha.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function escapeHtml(str) {
