@@ -95,7 +95,7 @@ function setupLogin() {
     document.getElementById('loginForm').style.display = 'block';
     document.getElementById('showRegister').style.display = 'block';
     document.getElementById('loginTitle').textContent = 'Bienvenido';
-    document.getElementById('loginSub').textContent = 'App de reporte de despachos — S&D Sucden';
+    document.getElementById('loginSub').textContent = 'Sistema de Gestión de Despacho — S&D Sucden';
   });
 
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -503,13 +503,111 @@ function renderGallery() {
   });
 }
 
+/* Etiquetas legibles para encabezados conocidos de la hoja. Cualquier
+ * columna que no esté en este mapa igual se muestra, con una etiqueta
+ * "limpiada" automáticamente (sin espacios de más, con mayúscula inicial),
+ * para que el detalle del reporte SIEMPRE muestre toda la información que
+ * exista en la hoja, aunque se agreguen columnas nuevas más adelante. */
+const FIELD_LABELS = {
+  'Fecha ': 'Fecha',
+  'Placa Del Vehiculo ': 'Placa del vehículo',
+  'Numero De Lotes ': 'Número de lotes',
+  'Nom: Del Respnsable del Despacho ': 'Responsable del despacho'
+};
+
+/* Campos que NO deben repetirse en la grilla de detalle porque ya se
+ * muestran en otro lugar (cabecera del reporte, documento anexo) o son
+ * alias/técnicos internos. */
+const DETAIL_SKIP_KEYS = new Set([
+  'Id_Reporte', 'Documentos Anexos', 'Placa', 'Fecha', 'Lotes', 'Responsable'
+]);
+
+function friendlyLabel(key) {
+  if (FIELD_LABELS[key]) return FIELD_LABELS[key];
+  const clean = String(key).trim().replace(/\s+/g, ' ');
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
+}
+
+/* Arma la grilla con TODA la información del registro: primero los campos
+ * principales en un orden fijo y legible, y luego cualquier otra columna
+ * que exista en la hoja de Google (para que nunca falte información aunque
+ * se agreguen campos nuevos en el futuro). */
+function buildDetailsGrid(rec) {
+  const grid = document.createElement('div');
+  grid.className = 'detail-grid';
+
+  const addItem = (label, value) => {
+    if (value === undefined || value === null || String(value).trim() === '') return;
+    const item = document.createElement('div');
+    item.className = 'detail-item';
+    const isDate = label.toLowerCase().indexOf('fecha') !== -1;
+    item.innerHTML =
+      '<div class="detail-label">' + escapeHtml(label) + '</div>' +
+      '<div class="detail-value">' + escapeHtml(isDate ? formatDate(value) : String(value)) + '</div>';
+    grid.appendChild(item);
+  };
+
+  addItem('Fecha', rec['Fecha ']);
+  addItem('Placa del vehículo', rec['Placa Del Vehiculo ']);
+  addItem('Número de lotes', rec['Numero De Lotes ']);
+  addItem('Responsable del despacho', rec['Nom: Del Respnsable del Despacho ']);
+
+  Object.keys(rec).forEach(key => {
+    if (key === 'Fecha ' || key === 'Placa Del Vehiculo ' || key === 'Numero De Lotes ' || key === 'Nom: Del Respnsable del Despacho ') return;
+    if (DETAIL_SKIP_KEYS.has(key)) return;
+    addItem(friendlyLabel(key), rec[key]);
+  });
+
+  return grid;
+}
+
+/* Resuelve (bajo demanda) el enlace del "Documento anexo" del reporte,
+ * si existe, usando la acción "mainFile" del backend. */
+async function buildDocumentLink(rec) {
+  const path = rec['Documentos Anexos'];
+  if (!path) return null;
+  try {
+    const res = await fetch(WEB_APP_URL + '?action=mainFile&group=' + currentGroup + '&path=' + encodeURIComponent(path));
+    const data = await res.json();
+    if (!data.ok || !data.viewUrl) return null;
+    const a = document.createElement('a');
+    a.className = 'doc-link';
+    a.href = data.downloadUrl || data.viewUrl;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"></path></svg> Ver documento anexo';
+    return a;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function loadImages(reportId, bodyEl, rec) {
   try {
+    // La información del reporte (fecha, placa, lotes, responsable y
+    // cualquier otro campo de la hoja) se muestra de inmediato: no depende
+    // de que las imágenes terminen de cargar.
+    bodyEl.innerHTML = '';
+    bodyEl.appendChild(buildDetailsGrid(rec));
+
+    const docLink = await buildDocumentLink(rec);
+    if (docLink) bodyEl.appendChild(docLink);
+
+    const imgSectionTitle = document.createElement('div');
+    imgSectionTitle.className = 'section-title';
+    imgSectionTitle.textContent = 'Imágenes adicionales';
+    bodyEl.appendChild(imgSectionTitle);
+
+    const loadingImgs = document.createElement('div');
+    loadingImgs.className = 'loading';
+    loadingImgs.innerHTML = '<span class="spinner dark"></span>Cargando imágenes…';
+    bodyEl.appendChild(loadingImgs);
+
     const res = await fetch(WEB_APP_URL + '?action=listImages&group=' + currentGroup + '&reportId=' + encodeURIComponent(reportId));
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Error desconocido');
 
-    bodyEl.innerHTML = '';
+    loadingImgs.remove();
 
     if (data.images.length) {
       const grid = document.createElement('div');
@@ -558,7 +656,18 @@ async function loadImages(reportId, bodyEl, rec) {
     editBtn.addEventListener('click', () => startEdit(rec));
     bodyEl.appendChild(editBtn);
   } catch (err) {
-    bodyEl.innerHTML = '<div class="empty">No se pudieron cargar las imágenes: ' + err.message + '</div>';
+    // No se borra lo que ya se alcanzó a mostrar (datos del reporte, documento
+    // anexo); solo se informa que las imágenes no pudieron cargarse.
+    const errEl = document.createElement('div');
+    errEl.className = 'empty';
+    errEl.textContent = 'No se pudieron cargar las imágenes: ' + err.message;
+    bodyEl.appendChild(errEl);
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'edit-btn';
+    editBtn.textContent = 'Editar este reporte';
+    editBtn.addEventListener('click', () => startEdit(rec));
+    bodyEl.appendChild(editBtn);
   }
 }
 
