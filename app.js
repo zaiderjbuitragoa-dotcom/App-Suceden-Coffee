@@ -739,7 +739,7 @@ function buildDeleteButton(reportId) {
 }
 
 async function deleteReport(reportId, triggerBtn) {
-  const ok = window.confirm('¿Seguro que quieres eliminar este reporte? Esta acción no se puede deshacer.');
+  const ok = window.confirm('¿Seguro que quieres eliminar este reporte? Esto borrará también TODAS sus fotos (no se puede deshacer).');
   if (!ok) return;
 
   const originalText = triggerBtn.textContent;
