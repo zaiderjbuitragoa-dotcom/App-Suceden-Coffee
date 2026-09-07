@@ -240,24 +240,64 @@ function setupApp() {
   const extraFiles = document.getElementById('extraFiles');
   extraFileRow.addEventListener('click', () => extraFiles.click());
   extraFiles.addEventListener('change', async () => {
-    extraFilesData = [];
-    const thumbs = document.getElementById('extraThumbs');
-    thumbs.innerHTML = '';
+    // IMPORTANTE: se ACUMULAN las fotos en vez de reemplazarlas. Antes,
+    // cada vez que se tocaba el campo se perdían las fotos ya elegidas y
+    // solo quedaba la última selección (por eso parecía que "solo dejaba
+    // una foto"). Ahora se puede tocar varias veces (o elegir varias de
+    // una sola vez desde la galería) y todas se van sumando, sin límite.
     for (const file of extraFiles.files) {
       const base64 = await fileToBase64(file);
-      extraFilesData.push({ base64, mimeType: file.type, filename: file.name });
-      const img = document.createElement('img');
-      img.src = 'data:' + file.type + ';base64,' + base64;
-      thumbs.appendChild(img);
+      addExtraFile({ base64, mimeType: file.type, filename: file.name });
     }
-    document.getElementById('extraFileLabel').textContent =
-      extraFiles.files.length ? extraFiles.files.length + ' foto(s) seleccionadas' : 'Toca para agregar una o varias fotos';
-    if (extraFiles.files.length) extraFileRow.classList.add('has-file');
+    extraFiles.value = ''; // limpia el input para poder volver a elegir/tomar más fotos
+    updateExtraFilesUI();
   });
 
   document.getElementById('reportForm').addEventListener('submit', onSubmit);
   document.getElementById('cancelEditBtn').addEventListener('click', cancelEdit);
   document.getElementById('gallerySearch').addEventListener('input', renderGallery);
+}
+
+/* Agrega una foto a la lista acumulada de "Imágenes adicionales". */
+function addExtraFile(fileData) {
+  extraFilesData.push(fileData);
+}
+
+/* Quita una foto ya elegida (antes de guardar) por su posición en la lista. */
+function removeExtraFile(index) {
+  extraFilesData.splice(index, 1);
+  updateExtraFilesUI();
+}
+
+/* Redibuja las miniaturas, el contador y la etiqueta del campo de fotos
+ * adicionales a partir de extraFilesData. */
+function updateExtraFilesUI() {
+  const thumbs = document.getElementById('extraThumbs');
+  const extraFileRow = document.getElementById('extraFileRow');
+  thumbs.innerHTML = '';
+  extraFilesData.forEach((fileData, index) => {
+    const item = document.createElement('div');
+    item.className = 'thumb-item';
+    const img = document.createElement('img');
+    img.src = 'data:' + fileData.mimeType + ';base64,' + fileData.base64;
+    const removeBtn = document.createElement('div');
+    removeBtn.className = 'thumb-remove';
+    removeBtn.textContent = '×';
+    removeBtn.title = 'Quitar esta foto';
+    removeBtn.addEventListener('click', (e) => { e.stopPropagation(); removeExtraFile(index); });
+    item.appendChild(img);
+    item.appendChild(removeBtn);
+    thumbs.appendChild(item);
+  });
+
+  const label = document.getElementById('extraFileLabel');
+  if (extraFilesData.length) {
+    label.textContent = extraFilesData.length + ' foto(s) seleccionadas — toca para agregar más';
+    extraFileRow.classList.add('has-file');
+  } else {
+    label.textContent = 'Toca para agregar fotos (puedes elegir varias a la vez, o tocar de nuevo para sumar más)';
+    extraFileRow.classList.remove('has-file');
+  }
 }
 
 function showSection(name) {
@@ -373,10 +413,8 @@ function resetForm() {
   document.getElementById('fecha').valueAsDate = new Date();
   document.getElementById('mainFileLabel').textContent = 'Toca para tomar foto o adjuntar archivo';
   document.getElementById('mainFileRow').classList.remove('has-file');
-  document.getElementById('extraFileLabel').textContent = 'Toca para agregar una o varias fotos';
-  document.getElementById('extraFileRow').classList.remove('has-file');
-  document.getElementById('extraThumbs').innerHTML = '';
   extraFilesData = [];
+  updateExtraFilesUI();
   cancelEdit();
   prefillResponsable();
 }
@@ -655,6 +693,8 @@ async function loadImages(reportId, bodyEl, rec) {
     editBtn.textContent = 'Editar este reporte';
     editBtn.addEventListener('click', () => startEdit(rec));
     bodyEl.appendChild(editBtn);
+
+    bodyEl.appendChild(buildDeleteButton(reportId));
   } catch (err) {
     // No se borra lo que ya se alcanzó a mostrar (datos del reporte, documento
     // anexo); solo se informa que las imágenes no pudieron cargarse.
@@ -668,6 +708,48 @@ async function loadImages(reportId, bodyEl, rec) {
     editBtn.textContent = 'Editar este reporte';
     editBtn.addEventListener('click', () => startEdit(rec));
     bodyEl.appendChild(editBtn);
+
+    bodyEl.appendChild(buildDeleteButton(reportId));
+  }
+}
+
+/* Crea el botón "Eliminar este reporte", con confirmación, que borra el
+ * registro de la hoja de datos (no borra las fotos ya subidas a Drive). */
+function buildDeleteButton(reportId) {
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'delete-btn';
+  deleteBtn.textContent = 'Eliminar este reporte';
+  deleteBtn.addEventListener('click', () => deleteReport(reportId, deleteBtn));
+  return deleteBtn;
+}
+
+async function deleteReport(reportId, triggerBtn) {
+  const ok = window.confirm('¿Seguro que quieres eliminar este reporte? Esta acción no se puede deshacer.');
+  if (!ok) return;
+
+  const originalText = triggerBtn.textContent;
+  triggerBtn.disabled = true;
+  triggerBtn.textContent = 'Eliminando…';
+
+  try {
+    const res = await fetch(WEB_APP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'delete', group: currentGroup, id: reportId })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error desconocido');
+
+    // Se quita el reporte de la caché local y se vuelve a dibujar la lista,
+    // sin necesidad de recargar todo desde el servidor.
+    if (recordsCache[currentGroup]) {
+      recordsCache[currentGroup] = recordsCache[currentGroup].filter(r => r['Id_Reporte'] !== reportId);
+    }
+    renderGallery();
+    refreshHubCounts();
+  } catch (err) {
+    triggerBtn.disabled = false;
+    triggerBtn.textContent = originalText;
+    window.alert('No se pudo eliminar el reporte: ' + err.message);
   }
 }
 
