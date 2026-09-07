@@ -185,6 +185,8 @@ function showApp() {
 
   if (currentUser.rol === 'admin') {
     document.getElementById('adminBtn').style.display = 'inline-flex';
+  } else {
+    document.getElementById('adminBtn').style.display = 'none';
   }
 
   goToHub();
@@ -207,6 +209,7 @@ function logout() {
   currentUser = null;
   recordsCache = { orquidea: null };
   document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('adminBtn').style.display = 'none'; // por si el usuario anterior era admin
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('loginCedula').value = '';
   document.getElementById('loginClave').value = '';
