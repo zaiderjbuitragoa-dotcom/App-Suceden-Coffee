@@ -3,13 +3,13 @@
 // ============================================================
 const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzNdxZmQ_ZQVTYVFBnuVF4_Gf1RmZuk2HUFxdOdYv6jKtRFFRSaRsdHX0UtNvSVvy1hkA/exec';
 
-const GROUP_LABELS = { andes: 'Datos Andes', orquidea: 'Datos Orquídea' };
+const GROUP_LABELS = { orquidea: 'Datos Orquídea' };
 
 // ------------------------------------------------------------
 
 let currentGroup = null;
 let extraFilesData = [];
-let recordsCache = { andes: null, orquidea: null };
+let recordsCache = { orquidea: null };
 let currentUser = null;
 let editingId = null;
 
@@ -205,7 +205,7 @@ function prefillResponsable() {
 function logout() {
   localStorage.removeItem('sucden_user');
   currentUser = null;
-  recordsCache = { andes: null, orquidea: null };
+  recordsCache = { orquidea: null };
   document.getElementById('appScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('loginCedula').value = '';
@@ -341,13 +341,13 @@ function openGroup(group) {
 }
 
 async function refreshHubCounts() {
-  ['andes', 'orquidea'].forEach(async (group) => {
+  ['orquidea'].forEach(async (group) => {
     try {
       const res = await fetch(WEB_APP_URL + '?action=list&group=' + group);
       const data = await res.json();
       if (data.ok) {
         recordsCache[group] = data.records;
-        const el = document.getElementById(group === 'andes' ? 'countAndes' : 'countOrquidea');
+        const el = document.getElementById('countOrquidea');
         if (el) el.textContent = data.records.length;
       }
     } catch (e) { /* silencioso */ }
