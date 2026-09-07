@@ -1,0 +1,16 @@
+{
+  "name": "Sistema de Gestión de Despacho — S&D Sucden",
+  "short_name": "S&D Despachos",
+  "description": "Reporte y control de despachos de S&D Sucden",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#131E52",
+  "theme_color": "#131E52",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

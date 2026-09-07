@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Gestión de Despacho — S&amp;D Sucden</title>
+<!-- Ícono de la pestaña del navegador (favicon) -->
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<!-- Ícono usado por iOS al "Agregar a pantalla de inicio" -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="S&amp;D Despachos">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- Manifest PWA: hace que Android/Chrome usen el logo de S&D (no un
+     ícono genérico) al instalar la app o crear un acceso directo -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#131E52">
+<style>
+  :root{
+    --bg-top: #E9F1FC;
+    --bg-bottom: #DCE9FA;
+    --navy: #1B2A6B;
+    --navy-deep: #131E52;
+    --indigo: #241E63;
+    --indigo-light: #3B2F8F;
+    --card: #FFFFFF;
+    --line: #DCE2EC;
+    --ink: #1B2233;
+    --ink-soft: #626C7E;
+    --ok: #2F7D4F;
+    --ok-bg: #E5F2EA;
+    --err: #C0392B;
+    --err-bg: #FBE9E6;
+    --warn-bg: #FDF3E7;
+    --warn-ink: #6E4A1F;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+    color: var(--ink);
+    min-height:100vh;
+  }
+  img.logo{ display:block; }
+
+  /* ============ SPINNER ============ */
+  .spinner{
+    width: 18px; height:18px; border-radius:50%;
+    border: 2.5px solid rgba(255,255,255,0.35);
+    border-top-color: #fff;
+    animation: spin 0.7s linear infinite;
+    display:inline-block;
+    vertical-align:middle;
+  }
+  .spinner.dark{ border-color: rgba(27,42,107,0.2); border-top-color: var(--navy); }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+  .btn-label{ display:inline-flex; align-items:center; gap:8px; justify-content:center; width:100%; }
+
+  /* ============ BOOT SPLASH ============ */
+  #bootSplash{
+    position:fixed; inset:0; z-index:9999;
+    background: linear-gradient(160deg, var(--navy-deep), var(--indigo));
+    display:none; align-items:center; justify-content:center;
+    flex-direction:column; gap:18px;
+    opacity:0;
+    transition: opacity .35s ease;
+  }
+  #bootSplash.visible{ display:flex; }
+  #bootSplash.show-opacity{ opacity:1; }
+  #bootSplash .boot-logo{
+    width:74px; height:74px; border-radius:20px;
+    background:#fff; display:flex; align-items:center; justify-content:center;
+    padding:12px; box-shadow:0 12px 30px rgba(0,0,0,0.25);
+  }
+  #bootSplash .boot-logo img{ width:100%; height:auto; display:block; }
+  #bootSplash .boot-spinner{
+    width:34px; height:34px; border-radius:50%;
+    border: 3px solid rgba(255,255,255,0.25);
+    border-top-color:#fff;
+    animation: spin 0.8s linear infinite;
+  }
+  #bootSplash .boot-text{ color:#fff; text-align:center; }
+  #bootSplash .boot-text h2{ margin:0 0 4px; font-size:17px; font-weight:700; }
+  #bootSplash .boot-text p{ margin:0; font-size:13px; color:#C7D1F0; }
+
+  /* ============ LOGIN ============ */
+  #loginScreen{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 24px 16px;
+    flex-direction:column;
+  }
+  .brand-banner{
+    display:flex; justify-content:center; margin-bottom:20px;
+  }
+  .brand-banner-inner{
+    background:#fff; border-radius:16px; padding:14px 26px;
+    box-shadow: 0 10px 30px rgba(27,42,107,0.14), 0 2px 8px rgba(27,42,107,0.06);
+  }
+  .brand-banner-inner img{ display:block; height:40px; width:auto; }
+  .login-card{
+    width:100%;
+    max-width: 400px;
+    background: var(--card);
+    border-radius: 22px;
+    padding: 34px 30px 28px;
+    box-shadow: 0 20px 60px rgba(27,42,107,0.18), 0 2px 8px rgba(27,42,107,0.08);
+    text-align:center;
+  }
+  .logo-badge{
+    width: 84px; height: 84px;
+    border-radius: 22px;
+    background: linear-gradient(160deg, var(--navy), var(--indigo-light));
+    display:flex; align-items:center; justify-content:center;
+    margin: 0 auto 18px;
+    box-shadow: 0 10px 24px rgba(27,42,107,0.35);
+    padding: 12px;
+  }
+  .logo-badge img{ width:100%; height:auto; }
+  .login-card h1{
+    font-size: 21px; font-weight:700; margin: 0 0 4px; color: var(--navy-deep);
+  }
+  .login-card p.sub{ font-size: 13.5px; color: var(--ink-soft); margin: 0 0 18px; }
+
+  .clock-box{
+    background: #F4F7FC;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 20px;
+  }
+  .clock-box .date{
+    font-size: 11px; letter-spacing: 0.06em; text-transform:uppercase;
+    color: var(--ink-soft); font-weight:700; margin-bottom:2px;
+  }
+  .clock-box .time{ font-size: 20px; font-weight:700; color: var(--navy-deep); font-variant-numeric: tabular-nums; }
+
+  .field{ margin-bottom: 14px; text-align:left; }
+  .field label{ display:block; font-size: 12.5px; color: var(--ink-soft); margin-bottom: 5px; font-weight: 600; }
+  .field input{
+    width:100%; padding: 12px 14px; border: 1px solid var(--line);
+    border-radius: var(--radius-sm); font-size: 15px; font-family: inherit; background:#F9FAFC;
+  }
+  .field input:focus{ outline:none; border-color: var(--navy); background:#fff; }
+  .checkbox-field{
+    display:flex; align-items:flex-start; gap:9px; text-align:left; margin-bottom:16px;
+    font-size:12.5px; color: var(--ink-soft); line-height:1.4;
+  }
+  .checkbox-field input{ margin-top:3px; width:16px; height:16px; flex-shrink:0; }
+  .checkbox-field a{ color: var(--navy); font-weight:600; }
+
+  button.primary{
+    width:100%; padding: 14px; border: none; border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, var(--navy), var(--indigo-light));
+    color:#fff; font-size: 14.5px; font-weight: 700; letter-spacing:0.03em; cursor:pointer;
+    box-shadow: 0 8px 20px rgba(27,42,107,0.28);
+  }
+  button.primary:disabled{ opacity:0.7; cursor:default; }
+  button.primary:active{ filter: brightness(0.95); }
+
+  button.link{
+    background:none; border:none; color: var(--navy); font-size: 13.5px; font-weight:700;
+    cursor:pointer; padding: 10px 0 0; text-decoration:none;
+  }
+  .status{ margin-top: 12px; font-size: 13px; text-align:left; border-radius:8px; padding:0; display:none; }
+  .status.ok{ display:block; color: var(--ok); background: var(--ok-bg); padding:9px 12px; }
+  .status.err{ display:block; color: var(--err); background: var(--err-bg); padding:9px 12px; }
+  .login-footer{ font-size:11px; color:#98A2B3; margin-top:22px; }
+
+  /* ============ POLICY MODAL ============ */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(19,30,82,0.55);
+    display:flex; align-items:center; justify-content:center; padding:20px; z-index:100;
+  }
+  .modal-box{
+    background:#fff; border-radius: var(--radius); max-width:480px; width:100%;
+    max-height:80vh; overflow-y:auto; padding: 24px; text-align:left;
+  }
+  .modal-box h3{ margin:0 0 12px; color: var(--navy-deep); font-size:17px; }
+  .modal-box p{ font-size:13.5px; color: var(--ink-soft); line-height:1.55; margin: 0 0 10px; }
+  .modal-box button{ margin-top:12px; }
+
+  /* ============ APP SHELL ============ */
+  #appScreen{ display:none; min-height:100vh; }
+  .app-header{
+    background: linear-gradient(135deg, var(--navy-deep), var(--indigo));
+    color:#fff; padding: 20px 20px 46px;
+  }
+  .app-header-inner{
+    max-width: 900px; margin: 0 auto;
+    display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+  }
+  .app-header-left{ display:flex; align-items:center; gap:12px; }
+  .app-header-left .logo-badge{ width:52px; height:52px; border-radius:13px; margin:0; box-shadow: 0 4px 12px rgba(0,0,0,0.18); background: #fff; padding:8px; }
+
+  .app-header-titles p{ margin:0; font-size:12px; letter-spacing:0.06em; text-transform:uppercase; color:#AEBBE8; font-weight:700; }
+  .app-header-titles h1{ margin:2px 0 0; font-size:18.5px; font-weight:700; }
+  .header-actions{ display:flex; align-items:center; gap:8px; }
+  .icon-btn{
+    background: rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); color:#fff;
+    border-radius: 10px; padding:8px 10px; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:6px;
+  }
+  .icon-btn.danger{ background: rgba(255,255,255,0.12); }
+  .greeting{ max-width:900px; margin: 18px auto 0; }
+  .greeting h2{ font-size: 19px; margin:0 0 3px; }
+  .greeting .clock-line{ font-size:12.5px; color:#C7D1F0; }
+
+  main.container{ max-width: 900px; margin: -26px auto 0; padding: 0 20px 40px; position:relative; }
+
+  /* ---- Hub cards ---- */
+  .hub-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:16px; margin-top:8px; }
+  .hub-card{
+    background:#fff; border-radius: var(--radius); padding: 22px 20px;
+    box-shadow: 0 10px 30px rgba(27,42,107,0.10); cursor:pointer; text-align:left;
+    border: 1px solid var(--line); transition: transform .12s ease;
+  }
+  .hub-card:active{ transform: scale(0.98); }
+  .hub-card .tag{ font-size:11px; letter-spacing:0.06em; text-transform:uppercase; font-weight:700; color:var(--navy); }
+  .hub-card h3{ margin:6px 0 4px; font-size:18px; color: var(--navy-deep); }
+  .hub-card .count{ font-size:12.5px; color: var(--ink-soft); }
+  .hub-card .count b{ color:var(--navy-deep); font-size:14px; }
+  .hub-card .arrow{ float:right; color: var(--ink-soft); font-size:18px; }
+  .hub-icon{
+    width:42px; height:42px; border-radius:12px;
+    background: linear-gradient(135deg, var(--navy), var(--indigo-light));
+    display:flex; align-items:center; justify-content:center; color:#fff;
+    margin-bottom:12px; box-shadow: 0 6px 14px rgba(27,42,107,0.28);
+  }
+  .hub-icon svg{ width:22px; height:22px; }
+
+  /* ---- Group screen ---- */
+  #panel-group{ display:none; }
+  .back-row{ display:flex; align-items:center; gap:8px; margin: 14px 0 12px; cursor:pointer; color: var(--navy); font-weight:700; font-size:13.5px; }
+  .saving-banner{
+    background:#fff; border:1px solid var(--line); border-left: 4px solid var(--navy);
+    border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom:16px;
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  }
+  .saving-banner-icon{
+    width:38px; height:38px; border-radius:10px; flex-shrink:0;
+    background: linear-gradient(135deg, var(--navy), var(--indigo-light));
+    display:flex; align-items:center; justify-content:center; color:#fff;
+  }
+  .saving-banner-icon svg{ width:20px; height:20px; }
+  .saving-banner .label{ font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); font-weight:700; }
+  .saving-banner .value{ font-size:15px; font-weight:700; color: var(--navy-deep); }
+
+  /* ---- Detalle completo del reporte (todos los campos de la hoja) ---- */
+  .detail-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap:12px 16px; margin-bottom:14px; }
+  .detail-item .detail-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color: var(--ink-soft); font-weight:700; margin-bottom:3px; }
+  .detail-item .detail-value{ font-size:14px; color: var(--ink); font-weight:600; word-break:break-word; }
+  .doc-link{
+    display:inline-flex; align-items:center; gap:7px; background:#F0F4FA; color: var(--navy);
+    border:1px solid var(--line); border-radius:8px; padding:9px 14px; font-size:13px; font-weight:700;
+    text-decoration:none; margin-bottom:14px;
+  }
+  .doc-link svg{ width:15px; height:15px; }
+  .section-title{ font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color: var(--ink-soft); font-weight:700; margin: 4px 0 8px; }
+
+  .tabs{ display:flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tab{ padding: 10px 14px; font-size: 14px; font-weight: 700; color: var(--ink-soft); cursor:pointer; border-bottom: 2px solid transparent; }
+  .tab.active{ color: var(--navy); border-bottom-color: var(--navy); }
+  section.panel{ display:none; }
+  section.panel.active{ display:block; }
+
+  .card{ background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; box-shadow: 0 6px 18px rgba(27,42,107,0.05); }
+  .field label{ display:block; font-size: 12.5px; color: var(--ink-soft); margin-bottom: 5px; font-weight: 600; }
+  .field input[type=text], .field input[type=date], .field input[type=number], .field input[type=password]{
+    width:100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 15px; font-family: inherit; background:#fff;
+  }
+  .field input:focus{ outline: none; border-color: var(--navy); }
+  .plate-input{ font-family: "SFMono-Regular", Consolas, monospace; letter-spacing: 0.06em; text-transform: uppercase; }
+  .file-row{ border: 1px dashed var(--line); border-radius: 8px; padding: 14px; text-align:center; background: #FAFBFC; cursor:pointer; font-size: 14px; color: var(--ink-soft); }
+  .file-row input{ display:none; }
+  .file-row.has-file{ border-color: var(--navy); color: var(--navy); background:#F0F4FA; }
+  .thumbs{ display:flex; flex-wrap:wrap; gap: 8px; margin-top: 10px; }
+  .thumbs img{ width: 64px; height: 64px; object-fit:cover; border-radius: 6px; border: 1px solid var(--line); }
+  .thumb-item{ position:relative; width:64px; height:64px; }
+  .thumb-item img{ width:100%; height:100%; }
+  .thumb-remove{
+    position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%;
+    background:#D64545; color:#fff; border:2px solid #fff; font-size:13px; line-height:1;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:700;
+  }
+  .delete-btn{
+    display:block; width:100%; margin-top:8px; padding:10px; border-radius: var(--radius-sm);
+    background:#FDEDED; color:#B42318; border:1px solid #F3C9C4; font-weight:700; font-size:14px; cursor:pointer;
+  }
+  .delete-btn:hover{ background:#FBDCDC; }
+  button.secondary{
+    width:100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background:#fff; color: var(--ink); font-size: 14px; font-weight:700; cursor:pointer; margin-top:8px;
+  }
+
+  .report{ background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 12px; overflow:hidden; }
+  .report-head{ padding: 13px 16px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+  .report-head .plate{ font-family: "SFMono-Regular", Consolas, monospace; font-weight:700; font-size: 15px; letter-spacing: 0.04em; }
+  .report-head .meta{ font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+  .chevron{ color: var(--ink-soft); font-size: 13px; transition: transform 0.15s; }
+  .report.open .chevron{ transform: rotate(180deg); }
+  .report-body{ display:none; padding: 0 16px 16px; border-top: 1px solid var(--line); }
+  .report.open .report-body{ display:block; padding-top: 14px; }
+  .img-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-bottom:12px; }
+  .img-cell{ border: 1px solid var(--line); border-radius: 8px; overflow:hidden; background:#fff; }
+  .img-cell img{ width:100%; height:100px; object-fit:cover; display:block; background:#F1F1EE; }
+  .img-cell a.dl{ display:block; text-align:center; padding: 7px 4px; font-size: 12.5px; font-weight:700; color: var(--navy); text-decoration:none; border-top: 1px solid var(--line); }
+  .empty, .loading{ text-align:center; color: var(--ink-soft); font-size: 14px; padding: 30px 10px; display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .search{ width:100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; margin-bottom: 12px; font-family: inherit; }
+  .config-warning{ background:#FDF3E7; border: 1px solid #E9C98C; color: #6E4A1F; font-size: 13px; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; }
+
+  /* ---- Botón flotante "volver" (siempre alcanzable, sin importar el scroll) ---- */
+  .floating-back{
+    position:fixed; left:16px; bottom:16px; z-index:500;
+    width:50px; height:50px; border-radius:50%;
+    background: var(--navy); color:#fff; border:none;
+    font-size:22px; font-weight:700; cursor:pointer;
+    box-shadow:0 10px 24px rgba(27,42,107,0.38);
+    display:none; align-items:center; justify-content:center;
+    line-height:1;
+  }
+  .floating-back.show{ display:flex; }
+  .floating-back:active{ filter:brightness(0.92); }
+
+  /* ---- Lightbox (ampliar imagen) ---- */
+  #imgLightbox{
+    position:fixed; inset:0; z-index:2000; background: rgba(10,14,36,0.92);
+    display:none; align-items:center; justify-content:center; padding: 30px 16px;
+  }
+  #imgLightbox.open{ display:flex; }
+  #imgLightbox img{ max-width:100%; max-height:80vh; border-radius:10px; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+  #imgLightbox .lightbox-close{
+    position:absolute; top:16px; right:18px; background: rgba(255,255,255,0.14);
+    border:none; color:#fff; width:40px; height:40px; border-radius:50%;
+    font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  #imgLightbox .lightbox-dl{
+    position:absolute; bottom:22px; left:50%; transform:translateX(-50%);
+    background:#fff; color: var(--navy-deep); font-weight:700; font-size:13.5px;
+    padding:10px 18px; border-radius: 30px; text-decoration:none;
+  }
+  .img-cell img{ cursor:zoom-in; }
+  .img-cell.img-error{ display:flex; flex-direction:column; }
+  .img-cell.img-error img{ display:none; }
+  .img-cell .img-fallback{
+    height:100px; display:flex; align-items:center; justify-content:center;
+    font-size:11.5px; color: var(--ink-soft); text-align:center; padding:6px; background:#F1F1EE;
+  }
+
+  .edit-btn{
+    background: var(--ok-bg); color: var(--ok); border:none; border-radius:8px; padding:9px 14px;
+    font-size:13px; font-weight:700; cursor:pointer; width:100%; margin-top:4px;
+  }
+
+  /* ---- Admin ---- */
+  .user-row{ display:flex; justify-content:space-between; align-items:center; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; margin-bottom:8px; flex-wrap:wrap; gap:8px; }
+  .user-row .name{ font-weight:700; font-size:14px; }
+  .user-row .meta{ font-size:12.5px; color:var(--ink-soft); }
+  .user-row .actions button{ border:none; border-radius:6px; padding:7px 12px; font-size:13px; font-weight:700; cursor:pointer; margin-left:6px; }
+  .btn-approve{ background:#E5F2EA; color: var(--ok); }
+  .btn-reject{ background:#FBE9E6; color: var(--err); }
+  .badge-estado{ font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:20px; }
+  .badge-autorizado{ background:#E5F2EA; color: var(--ok); }
+  .badge-pendiente{ background:#FDF3E7; color:#6E4A1F; }
+  .badge-rechazado{ background:#FBE9E6; color: var(--err); }
+
+  @media (min-width: 720px){
+    .app-header{ padding: 26px 32px 56px; }
+    main.container{ padding: 0 32px 48px; }
+  }
+  /* ============ ADAPTAR A PANTALLAS DE COMPUTADOR ============
+   * Todo lo anterior está pensado para celular (donde ya se ve bien). En
+   * pantallas grandes (computador/tablet horizontal) se agranda el ancho
+   * máximo del contenido, el logo, los títulos y las tarjetas, para que
+   * no se vea "perdido" en medio de tanto espacio en blanco. No se toca
+   * NADA de lo anterior: estas reglas solo aplican desde 900px de ancho
+   * en adelante, así que en celular todo sigue exactamente igual. */
+  @media (min-width: 900px){
+    .app-header-inner{ max-width: 1180px; }
+    .greeting{ max-width: 1180px; }
+    main.container{ max-width: 1180px; }
+
+    .app-header{ padding: 30px 32px 56px; }
+    .app-header-left .logo-badge{ width:60px; height:60px; border-radius:15px; padding:9px; }
+    .app-header-titles p{ font-size:13px; }
+    .app-header-titles h1{ font-size:24px; }
+    .greeting h2{ font-size:25px; }
+    .greeting .clock-line{ font-size:14px; }
+    .icon-btn{ font-size:14px; padding:10px 14px; }
+
+    .saving-banner{ padding:16px 22px; }
+    .saving-banner-icon{ width:44px; height:44px; }
+    .saving-banner-icon svg{ width:23px; height:23px; }
+    .saving-banner .label{ font-size:12px; }
+    .saving-banner .value{ font-size:17px; }
+
+    .hub-grid{ grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:22px; }
+    .hub-card{ padding:30px 28px; }
+    .hub-card h3{ font-size:22px; }
+    .hub-card .tag{ font-size:12px; }
+    .hub-card .count{ font-size:14px; }
+    .hub-card .count b{ font-size:15.5px; }
+    .hub-icon{ width:52px; height:52px; border-radius:14px; margin-bottom:14px; }
+    .hub-icon svg{ width:27px; height:27px; }
+
+    .tabs{ font-size:15px; }
+    .field label, .field-label{ font-size:14px; }
+    .report .report-head{ padding:18px 20px; }
+    .report-head .plate{ font-size:18px; }
+    .detail-item .detail-value{ font-size:15px; }
+    .thumb-item{ width:78px; height:78px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ BOOT SPLASH ============ -->
+<div id="bootSplash">
+  <div class="boot-logo"><img id="bootLogoImg" src="" alt="S&amp;D Sucden"></div>
+  <div class="boot-spinner"></div>
+  <div class="boot-text">
+    <h2>Bienvenido a S&amp;D Sucden</h2>
+    <p>Cargando tu sesión, un momento…</p>
+  </div>
+</div>
+
+<!-- ============ LOGIN ============ -->
+<div id="loginScreen">
+  <div class="brand-banner">
+    <div class="brand-banner-inner"><img id="brandBannerImg" src="" alt="S&amp;D Sucden Coffee"></div>
+  </div>
+  <div class="login-card">
+    <h1 id="loginTitle" style="margin-top:2px;">Bienvenido</h1>
+    <p class="sub" id="loginSub">Sistema de Gestión de Despacho — S&amp;D Sucden</p>
+
+    <div class="clock-box">
+      <div class="date" id="clockDate">—</div>
+      <div class="time" id="clockTime">--:--:--</div>
+    </div>
+
+    <form id="loginForm">
+      <div class="field">
+        <label for="loginCedula">Usuario o cédula</label>
+        <input type="text" id="loginCedula" inputmode="numeric" placeholder="Número de cédula" required>
+      </div>
+      <div class="field">
+        <label for="loginClave">Contraseña</label>
+        <input type="password" id="loginClave" required>
+      </div>
+      <button type="submit" class="primary" id="loginBtn"><span class="btn-label" id="loginBtnLabel">Ingresar al sistema</span></button>
+      <div class="status" id="loginStatus"></div>
+    </form>
+    <button type="button" class="link" id="showRegister">¿No tienes cuenta? Regístrate aquí</button>
+
+    <form id="registerForm" style="display:none;">
+      <div class="field">
+        <label for="regNombre">Nombre completo</label>
+        <input type="text" id="regNombre" required>
+      </div>
+      <div class="field">
+        <label for="regCedula">Cédula</label>
+        <input type="text" id="regCedula" inputmode="numeric" required>
+      </div>
+      <div class="field">
+        <label for="regClave">Crea una contraseña</label>
+        <input type="password" id="regClave" required>
+      </div>
+      <div class="checkbox-field">
+        <input type="checkbox" id="regPolitica" required>
+        <label for="regPolitica">He leído y acepto la <a href="#" id="openPolicy">Política de Tratamiento de Datos Personales</a>.</label>
+      </div>
+      <button type="submit" class="primary" id="registerBtn"><span class="btn-label" id="registerBtnLabel">Solicitar acceso</span></button>
+      <div class="status" id="registerStatus"></div>
+    </form>
+    <button type="button" class="link" id="showLogin" style="display:none;">Ya tengo cuenta, iniciar sesión</button>
+
+    <div class="login-footer">Diseñado y creado por Zaider J. Buitrago A.</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="policyModal" style="display:none;">
+  <div class="modal-box">
+    <h3>Política de Tratamiento de Datos Personales</h3>
+    <p>En cumplimiento de la Ley 1581 de 2012 y demás normas aplicables en Colombia sobre protección de datos personales, S&amp;D Sucden informa que los datos que registres en esta aplicación (nombre, cédula, y la información de los reportes de despacho) serán usados exclusivamente para la gestión operativa interna de los despachos de carga, control de acceso al sistema y trazabilidad de la información.</p>
+    <p>Tus datos no serán compartidos con terceros ajenos a la operación y permanecerán almacenados en la infraestructura de Google (Sheets y Drive) asociada a la cuenta administradora de la empresa. Puedes solicitar en cualquier momento la actualización o eliminación de tus datos personales contactando al administrador del sistema.</p>
+    <p>Al marcar la casilla de aceptación, confirmas que has leído esta política y autorizas el tratamiento de tus datos personales para los fines aquí descritos.</p>
+    <button type="button" class="primary" id="closePolicy" style="width:auto; padding:10px 22px;">Entendido</button>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="appScreen">
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div class="app-header-left">
+        <div class="logo-badge"><img id="headerBadgeImg" src="" alt="S&amp;D Sucden"></div>
+        <div class="app-header-titles">
+          <p>S&amp;D Sucden</p>
+          <h1>Sistema de Gestión de Despacho</h1>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="adminBtn" style="display:none;">Usuarios</button>
+        <button class="icon-btn danger" id="logoutBtn">Salir</button>
+      </div>
+    </div>
+    <div class="greeting">
+      <h2 id="greetingText">Hola</h2>
+      <div class="clock-line" id="appClockLine">—</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="configWarning" class="config-warning" style="display:none;">
+      Falta configurar la URL del backend. Edita <code>WEB_APP_URL</code> en el archivo <code>app.js</code>.
+    </div>
+
+    <!-- HUB -->
+    <section id="panel-hub">
+      <div class="hub-grid">
+        <div class="hub-card" data-group="andes">
+          <span class="arrow">›</span>
+          <div class="hub-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="14" height="10"></rect><path d="M15 9h4l3 3v4h-7z"></path><circle cx="6" cy="18" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg>
+          </div>
+          <div class="tag">Ruta de despacho</div>
+          <h3>Datos Andes</h3>
+          <div class="count">Reportes guardados: <b id="countAndes">—</b></div>
+        </div>
+        <div class="hub-card" data-group="orquidea">
+          <span class="arrow">›</span>
+          <div class="hub-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="14" height="10"></rect><path d="M15 9h4l3 3v4h-7z"></path><circle cx="6" cy="18" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg>
+          </div>
+          <div class="tag">Ruta de despacho</div>
+          <h3>Datos Orquídea</h3>
+          <div class="count">Reportes guardados: <b id="countOrquidea">—</b></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- GROUP SCREEN -->
+    <section id="panel-group">
+      <div class="back-row" id="backToHub">‹ Volver al inicio</div>
+
+      <div class="saving-banner">
+        <div class="saving-banner-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="14" height="10"></rect><path d="M15 9h4l3 3v4h-7z"></path><circle cx="6" cy="18" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg>
+        </div>
+        <div><div class="label">Estás trabajando en</div><div class="value" id="groupLabel">—</div></div>
+      </div>
+
+      <div class="tabs" id="mainTabs">
+        <div class="tab active" data-tab="form">Nuevo reporte</div>
+        <div class="tab" data-tab="gallery">Registros guardados</div>
+      </div>
+
+      <section class="panel active" id="panel-form">
+        <div class="card">
+          <form id="reportForm">
+            <input type="hidden" id="editingId" value="">
+            <div class="field" style="margin-bottom:14px;">
+              <label for="fecha">Fecha</label>
+              <input type="date" id="fecha" autocomplete="off" required>
+            </div>
+            <div class="field" style="margin-bottom:14px;">
+              <label for="placa">Placa del vehículo</label>
+              <input type="text" id="placa" class="plate-input" placeholder="ABC123" autocomplete="off" required>
+            </div>
+            <div class="field" style="margin-bottom:14px;">
+              <label for="lotes">Número de lotes</label>
+              <input type="number" id="lotes" min="0" placeholder="0" autocomplete="off" required>
+            </div>
+            <div class="field" style="margin-bottom:14px;">
+              <label for="responsable">Nombre del responsable del despacho</label>
+              <input type="text" id="responsable" placeholder="Nombre completo" autocomplete="off" required>
+            </div>
+            <div class="field" style="margin-bottom:14px;">
+              <label>Documento anexo</label>
+              <div class="file-row" id="mainFileRow">
+                <input type="file" id="mainFile" accept="image/*,application/pdf" capture="environment">
+                <span id="mainFileLabel">Toca para tomar foto o adjuntar archivo</span>
+              </div>
+            </div>
+            <div class="field" style="margin-bottom:14px;">
+              <label>Imágenes adicionales del despacho</label>
+              <div class="file-row" id="extraFileRow">
+                <input type="file" id="extraFiles" accept="image/*" multiple>
+                <span id="extraFileLabel">Toca para agregar fotos (puedes elegir varias a la vez, o tocar de nuevo para sumar más)</span>
+              </div>
+              <div class="thumbs" id="extraThumbs"></div>
+            </div>
+            <button type="submit" class="primary" id="submitBtn"><span class="btn-label" id="submitBtnLabel">Guardar reporte</span></button>
+            <button type="button" class="secondary" id="cancelEditBtn" style="display:none;">Cancelar edición</button>
+            <div class="status" id="formStatus"></div>
+          </form>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-gallery">
+        <input type="text" class="search" id="gallerySearch" placeholder="Buscar por placa o responsable">
+        <div id="galleryList"><div class="loading"><span class="spinner dark"></span>Cargando reportes…</div></div>
+      </section>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="panel-admin">
+      <div class="back-row" id="backFromAdmin">‹ Volver al inicio</div>
+      <div class="card">
+        <h2 style="font-size:15px; margin:0 0 4px;">Solicitudes pendientes</h2>
+        <p style="font-size:13px; color:var(--ink-soft); margin:0 0 14px;">Autoriza o rechaza el acceso de nuevos colaboradores.</p>
+        <div id="pendingList"><div class="loading"><span class="spinner dark"></span>Cargando…</div></div>
+      </div>
+      <div class="card">
+        <h2 style="font-size:15px; margin:0 0 14px;">Todos los usuarios</h2>
+        <div id="allUsersList"><div class="loading"><span class="spinner dark"></span>Cargando…</div></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<button id="floatingBack" class="floating-back" title="Volver al inicio" type="button">‹</button>
+
+<div id="imgLightbox">
+  <button type="button" class="lightbox-close" id="lightboxClose">&times;</button>
+  <img id="lightboxImg" src="" alt="">
+  <a id="lightboxDl" class="lightbox-dl" href="#" download>Descargar</a>
+</div>
+
+<script src="logos.js"></script>
+<script>
+  // ---- Logos: se colocan apenas el DOM existe (no dependen de app.js) ----
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!window.SUCDEN_LOGOS) return;
+    var header = document.getElementById('headerBadgeImg');
+    var boot   = document.getElementById('bootLogoImg');
+    var banner = document.getElementById('brandBannerImg');
+    if (header) header.src = window.SUCDEN_LOGOS.squared;
+    if (boot)   boot.src   = window.SUCDEN_LOGOS.squared;
+    if (banner) banner.src = window.SUCDEN_LOGOS.wide;
+  });
+
+  // ---- Pantalla de carga (splash) ----
+  // NO se muestra al abrir la página. Solo se activa cuando app.js la llama
+  // (por ejemplo, justo después de que el usuario envía usuario/contraseña),
+  // y se oculta cuando app.js termina esa operación.
+  (function () {
+    var MIN_VISIBLE_MS = 500;
+    var shownAt = 0;
+
+    window.showBootSplash = function (message) {
+      var el = document.getElementById('bootSplash');
+      if (!el) return;
+      var p = el.querySelector('.boot-text p');
+      if (p) p.textContent = message || 'Cargando, un momento…';
+      shownAt = Date.now();
+      el.classList.add('visible');
+      // truco: forzar reflow para que la transición de opacidad sí anime
+      void el.offsetWidth;
+      el.classList.add('show-opacity');
+    };
+
+    window.hideBootSplash = function () {
+      var el = document.getElementById('bootSplash');
+      if (!el) return;
+      var elapsed = Date.now() - shownAt;
+      var wait = Math.max(0, MIN_VISIBLE_MS - elapsed);
+      setTimeout(function () {
+        el.classList.remove('show-opacity');
+        setTimeout(function () { el.classList.remove('visible'); }, 350);
+      }, wait);
+    };
+  })();
+</script>
+<script src="app.js"></script>
+</body>
+</html>
