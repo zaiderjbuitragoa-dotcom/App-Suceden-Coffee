@@ -215,7 +215,7 @@
   main.container{ max-width: 900px; margin: -26px auto 0; padding: 0 20px 40px; position:relative; }
 
   /* ---- Hub cards ---- */
-  .hub-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:16px; margin-top:8px; }
+  .hub-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 420px)); gap:16px; margin-top:8px; }
   .hub-card{
     background:#fff; border-radius: var(--radius); padding: 22px 20px;
     box-shadow: 0 10px 30px rgba(27,42,107,0.10); cursor:pointer; text-align:left;
@@ -399,7 +399,7 @@
     .saving-banner .label{ font-size:12px; }
     .saving-banner .value{ font-size:17px; }
 
-    .hub-grid{ grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:22px; }
+    .hub-grid{ grid-template-columns: repeat(auto-fit, minmax(320px, 440px)); gap:22px; }
     .hub-card{ padding:30px 28px; }
     .hub-card h3{ font-size:22px; }
     .hub-card .tag{ font-size:12px; }
@@ -523,15 +523,6 @@
     <!-- HUB -->
     <section id="panel-hub">
       <div class="hub-grid">
-        <div class="hub-card" data-group="andes">
-          <span class="arrow">›</span>
-          <div class="hub-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="14" height="10"></rect><path d="M15 9h4l3 3v4h-7z"></path><circle cx="6" cy="18" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg>
-          </div>
-          <div class="tag">Ruta de despacho</div>
-          <h3>Datos Andes</h3>
-          <div class="count">Reportes guardados: <b id="countAndes">—</b></div>
-        </div>
         <div class="hub-card" data-group="orquidea">
           <span class="arrow">›</span>
           <div class="hub-icon">
@@ -541,6 +532,7 @@
           <h3>Datos Orquídea</h3>
           <div class="count">Reportes guardados: <b id="countOrquidea">—</b></div>
         </div>
+      </div>
       </div>
     </section>
 
