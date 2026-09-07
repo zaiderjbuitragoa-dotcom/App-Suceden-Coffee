@@ -410,13 +410,28 @@ async function onSubmit(e) {
 
 function resetForm() {
   document.getElementById('reportForm').reset();
+
+  // IMPORTANTE: no basta con confiar solo en form.reset(). En algunos
+  // navegadores (Chrome sobre todo) el autocompletado del formulario
+  // vuelve a rellenar los campos de texto con el último valor escrito.
+  // Por eso aquí se vacían explícitamente uno por uno: así el único
+  // campo que queda con datos después de guardar es "Responsable del
+  // despacho" (con el nombre de quien inició sesión), tal como se pidió.
+  document.getElementById('fecha').value = '';
   document.getElementById('fecha').valueAsDate = new Date();
+  document.getElementById('placa').value = '';
+  document.getElementById('lotes').value = '';
+  document.getElementById('responsable').value = '';
+
+  document.getElementById('mainFile').value = '';
   document.getElementById('mainFileLabel').textContent = 'Toca para tomar foto o adjuntar archivo';
   document.getElementById('mainFileRow').classList.remove('has-file');
+
   extraFilesData = [];
   updateExtraFilesUI();
+
   cancelEdit();
-  prefillResponsable();
+  prefillResponsable(); // vuelve a poner el nombre de quien inició sesión, ya que el campo quedó vacío arriba
 }
 
 function startEdit(rec) {
