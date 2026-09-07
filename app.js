@@ -162,11 +162,25 @@ function setupLogin() {
   });
 }
 
+/* Devuelve la fecha de HOY en formato "YYYY-MM-DD" usando la hora LOCAL
+ * del navegador. IMPORTANTE: no usar input.valueAsDate = new Date() para
+ * esto, porque esa propiedad trabaja en UTC — en Colombia (UTC-5),
+ * después de las 7:00 p.m. ya es "mañana" en UTC, y el campo terminaba
+ * mostrando un día adelantado. Asignando el string directamente a
+ * `.value` se evita ese salto de zona horaria. */
+function localDateString(date) {
+  const d = date || new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
 function showApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appScreen').style.display = 'block';
   document.getElementById('greetingText').textContent = 'Hola, ' + currentUser.nombre;
-  document.getElementById('fecha').valueAsDate = new Date();
+  document.getElementById('fecha').value = localDateString();
   prefillResponsable();
 
   if (currentUser.rol === 'admin') {
@@ -418,7 +432,7 @@ function resetForm() {
   // campo que queda con datos después de guardar es "Responsable del
   // despacho" (con el nombre de quien inició sesión), tal como se pidió.
   document.getElementById('fecha').value = '';
-  document.getElementById('fecha').valueAsDate = new Date();
+  document.getElementById('fecha').value = localDateString();
   document.getElementById('placa').value = '';
   document.getElementById('lotes').value = '';
   document.getElementById('responsable').value = '';
