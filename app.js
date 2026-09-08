@@ -530,10 +530,6 @@ async function loadGallery() {
   }
 }
 
-/* Filtra los reportes de la galería por placa, responsable o número de
- * lotes. Se agregó "Numero De Lotes " a la búsqueda para poder ubicar un
- * reporte escribiendo directamente el número de lote (más preciso que
- * buscar solo por placa/responsable cuando hay muchos reportes). */
 function renderGallery() {
   const records = recordsCache[currentGroup] || [];
   const query = document.getElementById('gallerySearch').value.trim().toLowerCase();
@@ -543,8 +539,7 @@ function renderGallery() {
     if (!query) return true;
     const placa = String(r['Placa Del Vehiculo '] || '').toLowerCase();
     const resp = String(r['Nom: Del Respnsable del Despacho '] || '').toLowerCase();
-    const lotes = String(r['Numero De Lotes '] || '').toLowerCase();
-    return placa.indexOf(query) !== -1 || resp.indexOf(query) !== -1 || lotes.indexOf(query) !== -1;
+    return placa.indexOf(query) !== -1 || resp.indexOf(query) !== -1;
   });
 
   if (!filtered.length) {
@@ -690,6 +685,7 @@ async function loadImages(reportId, bodyEl, rec) {
       data.images.forEach(img => {
         const cell = document.createElement('div');
         cell.className = 'img-cell';
+        cell.style.position = 'relative';
 
         const imgEl = document.createElement('img');
         imgEl.src = img.viewUrl;
@@ -706,6 +702,20 @@ async function loadImages(reportId, bodyEl, rec) {
           }
         });
         cell.appendChild(imgEl);
+
+        // Botón "×" para borrar SOLO esta foto (por si te equivocaste al
+        // subirla), sin tener que eliminar todo el reporte.
+        const removeBtn = document.createElement('div');
+        removeBtn.className = 'thumb-remove';
+        removeBtn.textContent = '×';
+        removeBtn.title = 'Eliminar esta foto';
+        removeBtn.style.top = '6px';
+        removeBtn.style.right = '6px';
+        removeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteSingleImage(img.path, cell, grid);
+        });
+        cell.appendChild(removeBtn);
 
         const dl = document.createElement('a');
         dl.className = 'dl';
@@ -747,6 +757,40 @@ async function loadImages(reportId, bodyEl, rec) {
     bodyEl.appendChild(editBtn);
 
     bodyEl.appendChild(buildDeleteButton(reportId));
+  }
+}
+
+/* Borra una sola foto ya guardada de un reporte (no todo el reporte).
+ * Se identifica por su "path" (ruta única en Drive). Si al borrarla no
+ * queda ninguna otra foto, se reemplaza la grilla por el mensaje de
+ * "sin imágenes adicionales". */
+async function deleteSingleImage(path, cellEl, gridEl) {
+  const ok = window.confirm('¿Eliminar esta foto? No se puede deshacer.');
+  if (!ok) return;
+
+  cellEl.style.opacity = '0.4';
+  cellEl.style.pointerEvents = 'none';
+
+  try {
+    const res = await fetch(WEB_APP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'deleteImage', group: currentGroup, path })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error desconocido');
+
+    cellEl.remove();
+    if (!gridEl.children.length) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.style.padding = '10px';
+      empty.textContent = 'Este reporte no tiene imágenes adicionales.';
+      gridEl.replaceWith(empty);
+    }
+  } catch (err) {
+    cellEl.style.opacity = '1';
+    cellEl.style.pointerEvents = 'auto';
+    window.alert('No se pudo eliminar la foto: ' + err.message);
   }
 }
 
