@@ -530,6 +530,10 @@ async function loadGallery() {
   }
 }
 
+/* Filtra los reportes de la galería por placa, responsable o número de
+ * lotes. Se agregó "Numero De Lotes " a la búsqueda para poder ubicar un
+ * reporte escribiendo directamente el número de lote (más preciso que
+ * buscar solo por placa/responsable cuando hay muchos reportes). */
 function renderGallery() {
   const records = recordsCache[currentGroup] || [];
   const query = document.getElementById('gallerySearch').value.trim().toLowerCase();
@@ -539,7 +543,8 @@ function renderGallery() {
     if (!query) return true;
     const placa = String(r['Placa Del Vehiculo '] || '').toLowerCase();
     const resp = String(r['Nom: Del Respnsable del Despacho '] || '').toLowerCase();
-    return placa.indexOf(query) !== -1 || resp.indexOf(query) !== -1;
+    const lotes = String(r['Numero De Lotes '] || '').toLowerCase();
+    return placa.indexOf(query) !== -1 || resp.indexOf(query) !== -1 || lotes.indexOf(query) !== -1;
   });
 
   if (!filtered.length) {
