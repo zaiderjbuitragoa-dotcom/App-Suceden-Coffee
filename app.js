@@ -12,6 +12,7 @@ let extraFilesData = [];
 let recordsCache = { orquidea: null };
 let currentUser = null;
 let editingId = null;
+let formDirty = false; // true cuando hay datos sin guardar en el formulario de reporte
 
 document.addEventListener('DOMContentLoaded', () => {
   if (!WEB_APP_URL || WEB_APP_URL.indexOf('PON_AQUI') !== -1) {
@@ -22,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupPolicyModal();
   setupLogin();
   setupApp();
+  setupUnsavedChangesWarning();
 
   const saved = localStorage.getItem('sucden_user');
   if (saved) {
@@ -50,6 +52,27 @@ function startClock() {
 }
 
 function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+/* ------------------------- AVISO DE CAMBIOS SIN GUARDAR -------------------------
+ * Si el usuario escribió algo en el formulario de "Nuevo reporte" (o adjuntó
+ * una foto) y trata de cerrar la pestaña, recargar o navegar fuera de la
+ * página SIN haber tocado "Guardar reporte", el navegador muestra su aviso
+ * nativo de confirmación. No se puede personalizar el texto de ese aviso
+ * (los navegadores modernos lo bloquean por seguridad), pero sí se activa
+ * o no según haya cambios pendientes. */
+function setupUnsavedChangesWarning() {
+  window.addEventListener('beforeunload', (e) => {
+    if (!formDirty) return;
+    e.preventDefault();
+    e.returnValue = ''; // requerido por algunos navegadores para mostrar el aviso
+  });
+}
+
+/* Marca el formulario como "con cambios sin guardar". Se llama desde los
+ * campos del formulario de reporte y desde los selectores de archivo. */
+function markFormDirty() {
+  formDirty = true;
+}
 
 /* ------------------------- PANTALLA DE CARGA (splash) -------------------------
  * showBootSplash()/hideBootSplash() viven en index.html. Se llaman de forma
@@ -239,7 +262,13 @@ function setupApp() {
       document.querySelectorAll('#panel-group .panel').forEach(p => p.classList.remove('active'));
       tab.classList.add('active');
       document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
-      if (tab.dataset.tab === 'gallery') loadGallery();
+      const exportBtnEl = document.getElementById('exportCsvBtn');
+      if (tab.dataset.tab === 'gallery') {
+        loadGallery();
+        if (exportBtnEl) exportBtnEl.classList.remove('is-hidden');
+      } else if (exportBtnEl) {
+        exportBtnEl.classList.add('is-hidden');
+      }
     });
   });
 
@@ -273,6 +302,18 @@ function setupApp() {
   document.getElementById('reportForm').addEventListener('submit', onSubmit);
   document.getElementById('cancelEditBtn').addEventListener('click', cancelEdit);
   document.getElementById('gallerySearch').addEventListener('input', renderGallery);
+
+  const exportBtn = document.getElementById('exportCsvBtn');
+  if (exportBtn) exportBtn.addEventListener('click', exportGalleryCSV);
+
+  // Cualquier cambio en los campos del reporte (o en los archivos) marca
+  // el formulario como "con cambios sin guardar", para el aviso al salir.
+  ['fecha', 'placa', 'lotes', 'responsable'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', markFormDirty);
+  });
+  mainFile.addEventListener('change', markFormDirty);
+  extraFiles.addEventListener('change', markFormDirty);
 }
 
 /* Agrega una foto a la lista acumulada de "Imágenes adicionales". */
@@ -339,6 +380,8 @@ function openGroup(group) {
   document.querySelectorAll('#panel-group .panel').forEach(p => p.classList.remove('active'));
   document.querySelector('.tab[data-tab="form"]').classList.add('active');
   document.getElementById('panel-form').classList.add('active');
+  const exportBtnEl = document.getElementById('exportCsvBtn');
+  if (exportBtnEl) exportBtnEl.classList.add('is-hidden');
   cancelEdit();
   prefillResponsable();
 }
@@ -384,6 +427,21 @@ async function onSubmit(e) {
     statusEl.className = 'status err';
     statusEl.textContent = 'Completa todos los campos antes de guardar.';
     return;
+  }
+
+  // Recordatorio de trazabilidad: si no se adjuntó ni el documento anexo ni
+  // ninguna foto adicional, se confirma con el usuario antes de guardar,
+  // ya que las imágenes son clave para poder rastrear el despacho después.
+  const mainFileInputCheck = document.getElementById('mainFile');
+  const hasMainFile = mainFileInputCheck.files.length > 0;
+  const hasExtraImages = extraFilesData.length > 0;
+  if (!hasMainFile && !hasExtraImages) {
+    const seguirSinImagenes = window.confirm(
+      'No has adjuntado ninguna imagen para este despacho.\n\n' +
+      'Las imágenes son importantes para la trazabilidad del despacho.\n\n' +
+      '¿Deseas guardar el reporte de todas formas, sin imágenes?'
+    );
+    if (!seguirSinImagenes) return;
   }
 
   setButtonLoading(submitBtn, submitLabel, 'Guardando…', true);
@@ -449,6 +507,7 @@ function resetForm() {
 
   cancelEdit();
   prefillResponsable(); // vuelve a poner el nombre de quien inició sesión, ya que el campo quedó vacío arriba
+  formDirty = false; // ya se guardó (o se limpió intencionalmente), no hay nada pendiente
 }
 
 function startEdit(rec) {
@@ -465,6 +524,8 @@ function startEdit(rec) {
   document.querySelectorAll('#panel-group .panel').forEach(p => p.classList.remove('active'));
   document.querySelector('.tab[data-tab="form"]').classList.add('active');
   document.getElementById('panel-form').classList.add('active');
+  const exportBtnEl = document.getElementById('exportCsvBtn');
+  if (exportBtnEl) exportBtnEl.classList.add('is-hidden');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -539,7 +600,8 @@ function renderGallery() {
     if (!query) return true;
     const placa = String(r['Placa Del Vehiculo '] || '').toLowerCase();
     const resp = String(r['Nom: Del Respnsable del Despacho '] || '').toLowerCase();
-    return placa.indexOf(query) !== -1 || resp.indexOf(query) !== -1;
+    const lotes = String(r['Numero De Lotes '] || '').toLowerCase();
+    return placa.indexOf(query) !== -1 || resp.indexOf(query) !== -1 || lotes.indexOf(query) !== -1;
   });
 
   if (!filtered.length) {
@@ -596,6 +658,80 @@ function friendlyLabel(key) {
   if (FIELD_LABELS[key]) return FIELD_LABELS[key];
   const clean = String(key).trim().replace(/\s+/g, ' ');
   return clean.charAt(0).toUpperCase() + clean.slice(1);
+}
+
+/* ------------------------- EXPORTAR A EXCEL/CSV ------------------------- */
+
+/* Descarga un .csv (se abre directo en Excel) con los reportes que están
+ * actualmente visibles en "Registros guardados" — es decir, respeta el
+ * texto que se haya escrito en el buscador. Incluye primero los 4 campos
+ * principales y luego cualquier otra columna que exista en la hoja, para
+ * que el reporte gerencial nunca se quede corto de información. */
+function exportGalleryCSV() {
+  const records = recordsCache[currentGroup] || [];
+  const query = document.getElementById('gallerySearch').value.trim().toLowerCase();
+
+  const filtered = records.filter(r => {
+    if (!query) return true;
+    const placa = String(r['Placa Del Vehiculo '] || '').toLowerCase();
+    const resp = String(r['Nom: Del Respnsable del Despacho '] || '').toLowerCase();
+    const lotes = String(r['Numero De Lotes '] || '').toLowerCase();
+    return placa.indexOf(query) !== -1 || resp.indexOf(query) !== -1 || lotes.indexOf(query) !== -1;
+  });
+
+  if (!filtered.length) {
+    window.alert('No hay reportes para exportar con el filtro actual.');
+    return;
+  }
+
+  const fixedKeys = ['Fecha ', 'Placa Del Vehiculo ', 'Numero De Lotes ', 'Nom: Del Respnsable del Despacho '];
+  const extraKeysSet = new Set();
+  filtered.forEach(rec => {
+    Object.keys(rec).forEach(key => {
+      if (fixedKeys.indexOf(key) !== -1) return;
+      if (DETAIL_SKIP_KEYS.has(key)) return;
+      if (key === 'Id_Reporte') return;
+      extraKeysSet.add(key);
+    });
+  });
+  const allKeys = fixedKeys.concat(Array.from(extraKeysSet));
+
+  const headerRow = allKeys.map(k => friendlyLabel(k));
+  const rows = [headerRow];
+
+  filtered.forEach(rec => {
+    const row = allKeys.map(key => {
+      const value = rec[key];
+      if (value === undefined || value === null) return '';
+      if (key === 'Fecha ') return formatDate(value);
+      return String(value);
+    });
+    rows.push(row);
+  });
+
+  const csvContent = rows.map(row => row.map(csvEscape).join(',')).join('\r\n');
+  // El BOM al inicio hace que Excel muestre bien las tildes y la "ñ".
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const groupName = (GROUP_LABELS[currentGroup] || currentGroup).replace(/\s+/g, '_');
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'Reportes_' + groupName + '_' + localDateString() + '.csv';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/* Envuelve en comillas y escapa un valor para que el CSV se abra bien en
+ * Excel aunque el texto tenga comas, comillas o saltos de línea. */
+function csvEscape(value) {
+  const str = String(value);
+  if (/[",\r\n]/.test(str)) {
+    return '"' + str.replace(/"/g, '""') + '"';
+  }
+  return str;
 }
 
 /* Arma la grilla con TODA la información del registro: primero los campos
@@ -685,7 +821,6 @@ async function loadImages(reportId, bodyEl, rec) {
       data.images.forEach(img => {
         const cell = document.createElement('div');
         cell.className = 'img-cell';
-        cell.style.position = 'relative';
 
         const imgEl = document.createElement('img');
         imgEl.src = img.viewUrl;
@@ -702,20 +837,6 @@ async function loadImages(reportId, bodyEl, rec) {
           }
         });
         cell.appendChild(imgEl);
-
-        // Botón "×" para borrar SOLO esta foto (por si te equivocaste al
-        // subirla), sin tener que eliminar todo el reporte.
-        const removeBtn = document.createElement('div');
-        removeBtn.className = 'thumb-remove';
-        removeBtn.textContent = '×';
-        removeBtn.title = 'Eliminar esta foto';
-        removeBtn.style.top = '6px';
-        removeBtn.style.right = '6px';
-        removeBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          deleteSingleImage(img.path, cell, grid);
-        });
-        cell.appendChild(removeBtn);
 
         const dl = document.createElement('a');
         dl.className = 'dl';
@@ -757,40 +878,6 @@ async function loadImages(reportId, bodyEl, rec) {
     bodyEl.appendChild(editBtn);
 
     bodyEl.appendChild(buildDeleteButton(reportId));
-  }
-}
-
-/* Borra una sola foto ya guardada de un reporte (no todo el reporte).
- * Se identifica por su "path" (ruta única en Drive). Si al borrarla no
- * queda ninguna otra foto, se reemplaza la grilla por el mensaje de
- * "sin imágenes adicionales". */
-async function deleteSingleImage(path, cellEl, gridEl) {
-  const ok = window.confirm('¿Eliminar esta foto? No se puede deshacer.');
-  if (!ok) return;
-
-  cellEl.style.opacity = '0.4';
-  cellEl.style.pointerEvents = 'none';
-
-  try {
-    const res = await fetch(WEB_APP_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'deleteImage', group: currentGroup, path })
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'Error desconocido');
-
-    cellEl.remove();
-    if (!gridEl.children.length) {
-      const empty = document.createElement('div');
-      empty.className = 'empty';
-      empty.style.padding = '10px';
-      empty.textContent = 'Este reporte no tiene imágenes adicionales.';
-      gridEl.replaceWith(empty);
-    }
-  } catch (err) {
-    cellEl.style.opacity = '1';
-    cellEl.style.pointerEvents = 'auto';
-    window.alert('No se pudo eliminar la foto: ' + err.message);
   }
 }
 
