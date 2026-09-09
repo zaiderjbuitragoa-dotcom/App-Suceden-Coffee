@@ -263,11 +263,42 @@
   .doc-link svg{ width:15px; height:15px; }
   .section-title{ font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color: var(--ink-soft); font-weight:700; margin: 4px 0 8px; }
 
-  .tabs{ display:flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tabs{ display:flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
   .tab{ padding: 10px 14px; font-size: 14px; font-weight: 700; color: var(--ink-soft); cursor:pointer; border-bottom: 2px solid transparent; }
   .tab.active{ color: var(--navy); border-bottom-color: var(--navy); }
   section.panel{ display:none; }
   section.panel.active{ display:block; }
+
+  /* ---- Fila de pestañas + botón exportar: ahora las pestañas también son
+     "pills" con borde, igual de estilo que el botón Exportar, para que
+     toda la fila se vea uniforme y más pulida. ---- */
+  .tabs-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .tabs-row .tabs{ margin-bottom:0; border-bottom:none; gap:8px; }
+  .tabs-row .tab{
+    display:inline-flex; align-items:center;
+    padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line);
+    background:#fff; color: var(--navy); font-size:13px; font-weight:700;
+    border-bottom: 1px solid var(--line); /* pisa el estilo antiguo de subrayado */
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .tabs-row .tab:hover{ background:#F0F4FA; border-color: var(--navy); }
+  .tabs-row .tab.active{
+    background: var(--navy); color:#fff; border-color: var(--navy);
+  }
+  .export-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:#fff; border:1px solid var(--line); color: var(--navy);
+    border-radius: 999px; padding: 7px 14px 7px 12px; font-size:12.5px; font-weight:700;
+    cursor:pointer; white-space:nowrap; margin-bottom:8px;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .export-btn:hover{ background:#F0F4FA; border-color: var(--navy); }
+  .export-btn:active{ transform: scale(0.97); }
+  .export-btn svg{ width:14px; height:14px; flex-shrink:0; }
+  .export-btn.is-hidden{ display:none; }
 
   .card{ background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; box-shadow: 0 6px 18px rgba(27,42,107,0.05); }
   .field label{ display:block; font-size: 12.5px; color: var(--ink-soft); margin-bottom: 5px; font-weight: 600; }
@@ -543,9 +574,15 @@
         <div><div class="label">Estás trabajando en</div><div class="value" id="groupLabel">—</div></div>
       </div>
 
-      <div class="tabs" id="mainTabs">
-        <div class="tab active" data-tab="form">Nuevo reporte</div>
-        <div class="tab" data-tab="gallery">Registros guardados</div>
+      <div class="tabs-row">
+        <div class="tabs" id="mainTabs">
+          <div class="tab active" data-tab="form">Nuevo reporte</div>
+          <div class="tab" data-tab="gallery">Registros guardados</div>
+        </div>
+        <button type="button" class="export-btn is-hidden" id="exportCsvBtn" title="Exportar los reportes filtrados a Excel/CSV">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="M7 10l5 5 5-5"></path><path d="M4 19h16"></path></svg>
+          Exportar
+        </button>
       </div>
 
       <section class="panel active" id="panel-form">
