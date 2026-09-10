@@ -11,6 +11,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="S&amp;D Despachos">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <!-- Manifest PWA: hace que Android/Chrome usen el logo de S&D (no un
      ícono genérico) al instalar la app o crear un acceso directo -->
@@ -337,9 +338,31 @@
   .report-body{ display:none; padding: 0 16px 16px; border-top: 1px solid var(--line); }
   .report.open .report-body{ display:block; padding-top: 14px; }
   .img-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-bottom:12px; }
-  .img-cell{ border: 1px solid var(--line); border-radius: 8px; overflow:hidden; background:#fff; }
+  .img-cell{ position:relative; border: 1px solid var(--line); border-radius: 8px; overflow:hidden; background:#fff; transition: opacity .18s ease, transform .18s ease; }
   .img-cell img{ width:100%; height:100px; object-fit:cover; display:block; background:#F1F1EE; }
   .img-cell a.dl{ display:block; text-align:center; padding: 7px 4px; font-size: 12.5px; font-weight:700; color: var(--navy); text-decoration:none; border-top: 1px solid var(--line); }
+  .img-cell.removing{ opacity:0; transform: scale(0.85); pointer-events:none; }
+
+  /* ---- Botón de eliminar foto individual ---- */
+  .photo-del-btn{
+    position:absolute; top:6px; right:6px; z-index:5;
+    width:28px; height:28px; border-radius:50%;
+    background: rgba(20,24,45,0.55); backdrop-filter: blur(2px);
+    border: 1px solid rgba(255,255,255,0.55);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; padding:0; transition: background .15s ease, transform .12s ease;
+  }
+  .photo-del-btn svg{ width:15px; height:15px; stroke: #fff; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .photo-del-btn:hover{ background: var(--err); transform: scale(1.08); }
+  .photo-del-btn:active{ transform: scale(0.94); }
+  .photo-del-btn.is-loading{ pointer-events:none; }
+  .photo-del-btn.is-loading svg{ display:none; }
+  .photo-del-btn .mini-spinner{
+    display:none; width:13px; height:13px; border-radius:50%;
+    border: 2px solid rgba(255,255,255,0.4); border-top-color:#fff;
+    animation: spin 0.7s linear infinite;
+  }
+  .photo-del-btn.is-loading .mini-spinner{ display:block; }
   .empty, .loading{ text-align:center; color: var(--ink-soft); font-size: 14px; padding: 30px 10px; display:flex; flex-direction:column; align-items:center; gap:10px; }
   .search{ width:100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; margin-bottom: 12px; font-family: inherit; }
   .config-warning{ background:#FDF3E7; border: 1px solid #E9C98C; color: #6E4A1F; font-size: 13px; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; }

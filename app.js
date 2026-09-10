@@ -14,6 +14,32 @@ let currentUser = null;
 let editingId = null;
 let formDirty = false; // true cuando hay datos sin guardar en el formulario de reporte
 
+/* Hace un fetch y lo interpreta como JSON, reintentando automáticamente si
+ * falla (Apps Script a veces responde con un 404/500 intermitente en su
+ * proxy de salida — script.googleusercontent.com/macros/echo — cuando hay
+ * mucha carga; en la gran mayoría de los casos un segundo intento sí
+ * funciona). Lanza un Error con mensaje legible si tras los reintentos
+ * sigue sin funcionar. */
+async function fetchJson(url, options, attempts) {
+  attempts = attempts || 3;
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (!res.ok) throw new Error('El servidor respondió con estado ' + res.status);
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) await new Promise(r => setTimeout(r, 500 * (i + 1)));
+    }
+  }
+  throw new Error(
+    (lastErr && lastErr.message ? lastErr.message : 'Error de red') +
+    ' — no se pudo conectar con el servidor después de varios intentos.'
+  );
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   if (!WEB_APP_URL || WEB_APP_URL.indexOf('PON_AQUI') !== -1) {
     document.getElementById('configWarning').style.display = 'block';
@@ -389,14 +415,13 @@ function openGroup(group) {
 async function refreshHubCounts() {
   ['orquidea'].forEach(async (group) => {
     try {
-      const res = await fetch(WEB_APP_URL + '?action=list&group=' + group);
-      const data = await res.json();
+      const data = await fetchJson(WEB_APP_URL + '?action=list&group=' + group);
       if (data.ok) {
         recordsCache[group] = data.records;
         const el = document.getElementById('countOrquidea');
         if (el) el.textContent = data.records.length;
       }
-    } catch (e) { /* silencioso */ }
+    } catch (e) { /* silencioso: el contador simplemente no se actualiza esta vez */ }
   });
 }
 
@@ -581,13 +606,14 @@ async function loadGallery() {
   if (recordsCache[currentGroup]) { renderGallery(); return; }
   listEl.innerHTML = '<div class="loading"><span class="spinner dark"></span>Cargando reportes…</div>';
   try {
-    const res = await fetch(WEB_APP_URL + '?action=list&group=' + currentGroup);
-    const data = await res.json();
+    const data = await fetchJson(WEB_APP_URL + '?action=list&group=' + currentGroup);
     if (!data.ok) throw new Error(data.error || 'Error desconocido');
     recordsCache[currentGroup] = data.records;
     renderGallery();
   } catch (err) {
-    listEl.innerHTML = '<div class="empty">No se pudieron cargar los reportes: ' + err.message + '</div>';
+    listEl.innerHTML =
+      '<div class="empty">No se pudieron cargar los reportes: ' + escapeHtml(err.message) +
+      '<br><button class="secondary" style="margin-top:10px;width:auto;padding:8px 16px;" onclick="loadGallery()">Reintentar</button></div>';
   }
 }
 
@@ -773,8 +799,7 @@ async function buildDocumentLink(rec) {
   const path = rec['Documentos Anexos'];
   if (!path) return null;
   try {
-    const res = await fetch(WEB_APP_URL + '?action=mainFile&group=' + currentGroup + '&path=' + encodeURIComponent(path));
-    const data = await res.json();
+    const data = await fetchJson(WEB_APP_URL + '?action=mainFile&group=' + currentGroup + '&path=' + encodeURIComponent(path));
     if (!data.ok || !data.viewUrl) return null;
     const a = document.createElement('a');
     a.className = 'doc-link';
@@ -809,8 +834,7 @@ async function loadImages(reportId, bodyEl, rec) {
     loadingImgs.innerHTML = '<span class="spinner dark"></span>Cargando imágenes…';
     bodyEl.appendChild(loadingImgs);
 
-    const res = await fetch(WEB_APP_URL + '?action=listImages&group=' + currentGroup + '&reportId=' + encodeURIComponent(reportId));
-    const data = await res.json();
+    const data = await fetchJson(WEB_APP_URL + '?action=listImages&group=' + currentGroup + '&reportId=' + encodeURIComponent(reportId));
     if (!data.ok) throw new Error(data.error || 'Error desconocido');
 
     loadingImgs.remove();
@@ -837,6 +861,7 @@ async function loadImages(reportId, bodyEl, rec) {
           }
         });
         cell.appendChild(imgEl);
+        cell.appendChild(buildPhotoDeleteButton(img, cell));
 
         const dl = document.createElement('a');
         dl.className = 'dl';
@@ -878,6 +903,52 @@ async function loadImages(reportId, bodyEl, rec) {
     bodyEl.appendChild(editBtn);
 
     bodyEl.appendChild(buildDeleteButton(reportId));
+  }
+}
+
+/* Crea el botoncito circular con ícono de basurero que va sobre cada foto
+ * individual, para borrarla sin tener que eliminar todo el reporte. Usa la
+ * acción "deleteImage" del backend, que ya existe pero antes no estaba
+ * conectada a ningún botón en el front. */
+function buildPhotoDeleteButton(img, cell) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'photo-del-btn';
+  btn.title = 'Eliminar esta foto';
+  btn.setAttribute('aria-label', 'Eliminar esta foto');
+  btn.innerHTML =
+    '<svg viewBox="0 0 24 24"><path d="M4 7h16"></path><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>' +
+    '<path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>' +
+    '<span class="mini-spinner"></span>';
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation(); // que no abra el lightbox al tocar el botón
+    deletePhoto(img, cell, btn);
+  });
+  return btn;
+}
+
+async function deletePhoto(img, cell, btn) {
+  const ok = window.confirm('¿Eliminar esta foto? No se puede deshacer.');
+  if (!ok) return;
+
+  btn.classList.add('is-loading');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(WEB_APP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'deleteImage', group: currentGroup, path: img.path })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error desconocido');
+
+    // Animación de salida y luego se quita del DOM.
+    cell.classList.add('removing');
+    setTimeout(() => cell.remove(), 180);
+  } catch (err) {
+    btn.classList.remove('is-loading');
+    btn.disabled = false;
+    window.alert('No se pudo eliminar la foto: ' + err.message);
   }
 }
 
