@@ -136,6 +136,7 @@ function setupLogin() {
     document.getElementById('showLogin').style.display = 'block';
     document.getElementById('loginTitle').textContent = 'Solicitar acceso';
     document.getElementById('loginSub').textContent = 'Un administrador debe autorizar tu cuenta.';
+    if (window.BeanMascot) BeanMascot.setState('idle');
   });
 
   document.getElementById('showLogin').addEventListener('click', () => {
@@ -145,7 +146,49 @@ function setupLogin() {
     document.getElementById('showRegister').style.display = 'block';
     document.getElementById('loginTitle').textContent = 'Bienvenido';
     document.getElementById('loginSub').textContent = 'Sistema de Gestión de Despacho — S&D Sucden';
+    if (window.BeanMascot) BeanMascot.setState('idle');
   });
+
+  // ---- Mascota: se tapa los ojos mientras se escribe cualquiera de las
+  // dos contraseñas (login o registro), y "mira" brevemente al escribir la
+  // cédula/nombre. updateCoverState queda expuesta en este cierre (closure)
+  // de setupLogin() para que el propio submit del login la pueda volver a
+  // llamar después de mostrar el estado de error (ver más abajo). ----
+  const claveInput = document.getElementById('loginClave');
+  const cedulaInput = document.getElementById('loginCedula');
+  const updateCoverState = () => {
+    if (!window.BeanMascot) return;
+    const focused = document.activeElement === claveInput;
+    if (claveInput.value.length > 0 || focused) BeanMascot.setState('covering');
+    else BeanMascot.setState('idle');
+  };
+  if (claveInput) {
+    claveInput.addEventListener('focus', updateCoverState);
+    claveInput.addEventListener('input', updateCoverState);
+    claveInput.addEventListener('blur', updateCoverState);
+  }
+  if (cedulaInput) {
+    cedulaInput.addEventListener('input', () => { if (window.BeanMascot) BeanMascot.turnHead(cedulaInput.value.length); });
+    cedulaInput.addEventListener('blur', () => { if (window.BeanMascot) BeanMascot.resetHead(); });
+  }
+
+  const regClaveInput = document.getElementById('regClave');
+  const regNombreInput = document.getElementById('regNombre');
+  const updateCoverStateReg = () => {
+    if (!window.BeanMascot) return;
+    const focused = document.activeElement === regClaveInput;
+    if (regClaveInput.value.length > 0 || focused) BeanMascot.setState('covering');
+    else BeanMascot.setState('idle');
+  };
+  if (regClaveInput) {
+    regClaveInput.addEventListener('focus', updateCoverStateReg);
+    regClaveInput.addEventListener('input', updateCoverStateReg);
+    regClaveInput.addEventListener('blur', updateCoverStateReg);
+  }
+  if (regNombreInput) {
+    regNombreInput.addEventListener('input', () => { if (window.BeanMascot) BeanMascot.turnHead(regNombreInput.value.length); });
+    regNombreInput.addEventListener('blur', () => { if (window.BeanMascot) BeanMascot.resetHead(); });
+  }
 
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -157,20 +200,30 @@ function setupLogin() {
     const clave = document.getElementById('loginClave').value;
 
     setButtonLoading(btn, label, 'Ingresando…', true);
-    splashShow('Verificando tus datos…');
+    // Nota: aquí ya NO se usa el boot splash de pantalla completa (splashShow),
+    // porque taparía a la mascota justo cuando más se luce (tapándose los
+    // ojos / pensando / celebrando). El spinner del botón sigue avisando
+    // que hay una petición en curso.
+    if (window.BeanMascot) BeanMascot.setState('thinking');
     try {
-      const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'login', cedula, clave }) });
-      const data = await res.json();
+      const data = await fetchJson(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'login', cedula, clave }) });
       if (!data.ok) throw new Error(data.error || 'No se pudo iniciar sesión.');
       currentUser = data.user;
       localStorage.setItem('sucden_user', JSON.stringify(currentUser));
+      if (window.BeanMascot) BeanMascot.setState('success');
+      // Pequeña pausa para que se alcance a ver el pulgar arriba antes de
+      // pasar a la pantalla principal de la app.
+      await new Promise(r => setTimeout(r, 750));
       showApp();
     } catch (err) {
+      if (window.BeanMascot) BeanMascot.setState('error');
       statusEl.className = 'status err';
       statusEl.textContent = err.message;
+      // Tras mostrar la carita de "esa no era", vuelve a taparse los ojos
+      // si la clave sigue escrita en el campo (o queda en reposo si no).
+      setTimeout(updateCoverState, 1600);
     } finally {
       setButtonLoading(btn, label, '', false, 'Ingresar al sistema');
-      splashHide();
     }
   });
 
@@ -192,19 +245,23 @@ function setupLogin() {
     }
 
     setButtonLoading(btn, label, 'Enviando…', true);
+    if (window.BeanMascot) BeanMascot.setState('thinking');
     try {
-      const res = await fetch(WEB_APP_URL, {
+      const data = await fetchJson(WEB_APP_URL, {
         method: 'POST',
         body: JSON.stringify({ action: 'requestAccess', nombre, cedula, clave, aceptaPolitica })
       });
-      const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'No se pudo enviar la solicitud.');
       statusEl.className = 'status ok';
       statusEl.textContent = 'Solicitud enviada. Un administrador debe autorizarte antes de que puedas ingresar.';
       document.getElementById('registerForm').reset();
+      if (window.BeanMascot) BeanMascot.setState('success');
+      setTimeout(() => { if (window.BeanMascot) BeanMascot.setState('idle'); }, 1800);
     } catch (err) {
       statusEl.className = 'status err';
       statusEl.textContent = err.message;
+      if (window.BeanMascot) BeanMascot.setState('error');
+      setTimeout(updateCoverStateReg, 1600);
     } finally {
       setButtonLoading(btn, label, '', false, 'Solicitar acceso');
     }
@@ -262,6 +319,7 @@ function logout() {
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('loginCedula').value = '';
   document.getElementById('loginClave').value = '';
+  if (window.BeanMascot) BeanMascot.setState('idle');
 }
 
 /* ------------------------- NAVEGACIÓN APP ------------------------- */
@@ -317,9 +375,14 @@ function setupApp() {
     // solo quedaba la última selección (por eso parecía que "solo dejaba
     // una foto"). Ahora se puede tocar varias veces (o elegir varias de
     // una sola vez desde la galería) y todas se van sumando, sin límite.
+    const label = document.getElementById('extraFileLabel');
+    const totalNuevas = extraFiles.files.length;
+    let i = 0;
     for (const file of extraFiles.files) {
-      const base64 = await fileToBase64(file);
-      addExtraFile({ base64, mimeType: file.type, filename: file.name });
+      i++;
+      if (totalNuevas > 1) label.textContent = 'Optimizando foto ' + i + ' de ' + totalNuevas + '…';
+      const fileData = await compressImageFile(file);
+      addExtraFile(fileData);
     }
     extraFiles.value = ''; // limpia el input para poder volver a elegir/tomar más fotos
     updateExtraFilesUI();
@@ -434,6 +497,59 @@ function fileToBase64(file) {
   });
 }
 
+/* Comprime y redimensiona una foto en el navegador ANTES de subirla. Una
+ * foto de cámara de celular suele pesar 3–8 MB; convertida a base64 eso
+ * se vuelve un texto todavía más pesado, y subir varias de una vez es lo
+ * que hace que "guardar" se sienta lento. Redimensionando al ancho máximo
+ * indicado y guardando como JPEG con esta calidad, el archivo final queda
+ * normalmente entre 150–400 KB, sin pérdida de calidad visible para un
+ * reporte de despacho. PDFs y GIFs se suben tal cual, sin tocar. */
+function compressImageFile(file, maxDim, quality) {
+  maxDim = maxDim || 1600;
+  quality = quality || 0.72;
+  return new Promise((resolve, reject) => {
+    const uploadAsIs = () => fileToBase64(file)
+      .then(base64 => resolve({ base64, mimeType: file.type, filename: file.name }))
+      .catch(reject);
+
+    if (!file.type.startsWith('image/') || file.type === 'image/gif') {
+      uploadAsIs();
+      return;
+    }
+
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width >= height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+        else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        if (!blob) { uploadAsIs(); return; }
+        // Si la compresión no logró achicar el archivo (raro, pero puede
+        // pasar con imágenes ya muy comprimidas), se usa el original.
+        if (blob.size >= file.size) { uploadAsIs(); return; }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = reader.result.split(',')[1];
+          const baseName = file.name.replace(/\.[^.]+$/, '');
+          resolve({ base64, mimeType: 'image/jpeg', filename: baseName + '.jpg' });
+        };
+        reader.onerror = () => uploadAsIs();
+        reader.readAsDataURL(blob);
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = uploadAsIs; // formato raro (p.ej. HEIC no soportado por el navegador): se sube tal cual
+    img.src = url;
+  });
+}
+
 /* ------------------------- FORMULARIO (crear / editar) ------------------------- */
 
 async function onSubmit(e) {
@@ -476,8 +592,7 @@ async function onSubmit(e) {
     const mainFileInput = document.getElementById('mainFile');
     if (mainFileInput.files.length) {
       const f = mainFileInput.files[0];
-      const base64 = await fileToBase64(f);
-      mainFileData = { base64, mimeType: f.type, filename: f.name };
+      mainFileData = await compressImageFile(f);
     }
 
     const fields = {
@@ -492,7 +607,15 @@ async function onSubmit(e) {
       ? { action: 'update', group: currentGroup, id: editingId, fields, images: extraFilesData }
       : { action: 'create', group: currentGroup, fields, file: mainFileData, images: extraFilesData };
 
+    // IMPORTANTE: a propósito este envío NO usa fetchJson() (que reintenta
+    // automáticamente). Guardar un reporte no es una operación segura de
+    // repetir: si el primer intento sí llegó a crear el reporte en el
+    // servidor pero la respuesta se perdió en el camino, un reintento
+    // automático podría crear un reporte DUPLICADO. Por eso aquí se hace
+    // un solo intento, con un mensaje de error claro para que la persona
+    // decida si repetir manualmente.
     const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(payload) });
+    if (!res.ok) throw new Error('El servidor respondió con estado ' + res.status + '. Verifica tu conexión e inténtalo de nuevo.');
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Error desconocido');
 
@@ -654,7 +777,14 @@ function renderGallery() {
     head.addEventListener('click', () => {
       const wasOpen = div.classList.contains('open');
       div.classList.toggle('open');
-      if (!wasOpen) loadImages(reportId, div.querySelector('.report-body'), rec);
+      // Solo se piden las imágenes la PRIMERA vez que se abre este reporte
+      // en la sesión actual. Si ya se cargaron antes, se reabre al instante
+      // con lo que ya está en pantalla, en lugar de volver a pedirlas al
+      // servidor cada vez que se pliega/despliega el mismo reporte.
+      if (!wasOpen && !div.dataset.loaded) {
+        div.dataset.loaded = '1';
+        loadImages(reportId, div.querySelector('.report-body'), rec);
+      }
     });
 
     listEl.appendChild(div);
@@ -935,11 +1065,10 @@ async function deletePhoto(img, cell, btn) {
   btn.disabled = true;
 
   try {
-    const res = await fetch(WEB_APP_URL, {
+    const data = await fetchJson(WEB_APP_URL, {
       method: 'POST',
       body: JSON.stringify({ action: 'deleteImage', group: currentGroup, path: img.path })
     });
-    const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Error desconocido');
 
     // Animación de salida y luego se quita del DOM.
@@ -971,11 +1100,10 @@ async function deleteReport(reportId, triggerBtn) {
   triggerBtn.textContent = 'Eliminando…';
 
   try {
-    const res = await fetch(WEB_APP_URL, {
+    const data = await fetchJson(WEB_APP_URL, {
       method: 'POST',
       body: JSON.stringify({ action: 'delete', group: currentGroup, id: reportId })
     });
-    const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Error desconocido');
 
     // Se quita el reporte de la caché local y se vuelve a dibujar la lista,
@@ -1001,8 +1129,7 @@ async function loadAdmin() {
   allEl.innerHTML = '<div class="loading"><span class="spinner dark"></span>Cargando…</div>';
 
   try {
-    const res = await fetch(WEB_APP_URL + '?action=listPendingUsers&adminCedula=' + encodeURIComponent(currentUser.cedula));
-    const data = await res.json();
+    const data = await fetchJson(WEB_APP_URL + '?action=listPendingUsers&adminCedula=' + encodeURIComponent(currentUser.cedula));
     if (!data.ok) throw new Error(data.error || 'Error desconocido');
     renderPending(data.users);
   } catch (err) {
@@ -1010,8 +1137,7 @@ async function loadAdmin() {
   }
 
   try {
-    const res2 = await fetch(WEB_APP_URL + '?action=listUsers&adminCedula=' + encodeURIComponent(currentUser.cedula));
-    const data2 = await res2.json();
+    const data2 = await fetchJson(WEB_APP_URL + '?action=listUsers&adminCedula=' + encodeURIComponent(currentUser.cedula));
     if (!data2.ok) throw new Error(data2.error || 'Error desconocido');
     renderAllUsers(data2.users);
   } catch (err) {
@@ -1038,8 +1164,7 @@ function renderPending(users) {
 async function resolveUser(cedula, action, row) {
   row.style.opacity = '0.5';
   try {
-    const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action, cedula, adminCedula: currentUser.cedula }) });
-    const data = await res.json();
+    const data = await fetchJson(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action, cedula, adminCedula: currentUser.cedula }) });
     if (!data.ok) throw new Error(data.error || 'Error desconocido');
     loadAdmin();
   } catch (err) {

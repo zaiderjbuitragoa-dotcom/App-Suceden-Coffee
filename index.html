@@ -175,6 +175,126 @@
   .status.err{ display:block; color: var(--err); background: var(--err-bg); padding:9px 12px; }
   .login-footer{ font-size:11px; color:#98A2B3; margin-top:22px; }
 
+  /* ============ MASCOTA: GRANITO DE CAFÉ ============
+   * Personaje interactivo en SVG. Todo el control de pose se hace con
+   * `transform` sobre los grupos .arm-left / .arm-right, que usan
+   * `transform-box: view-box` — así los px de rotate()/translate() se
+   * miden directamente en las coordenadas del viewBox del SVG (0 0 220 260)
+   * sin importar el tamaño final en pantalla. Los estados (idle / covering /
+   * thinking / success / error) se controlan con una sola clase en
+   * #beanWidget desde app.js (ver BeanMascot en el script de más abajo). */
+  .bean-stage{ display:flex; justify-content:center; margin-bottom:2px; position:relative; height:150px; }
+  /* El <svg> se dibuja SIEMPRE a su tamaño real (220x260, igual a su
+   * viewBox) y todo el widget se achica después con `scale()`. Esto es
+   * clave: así cada punto de giro de los brazos (transform-origin, en px)
+   * cae exactamente donde corresponde dentro del dibujo. Si el <svg> se
+   * mostrara ya "encogido" por CSS (width/height distintos al viewBox),
+   * el navegador calcula esos puntos de giro mal y los brazos terminan
+   * rotando fuera del área visible (por eso antes no se veían). */
+  .bean-widget{ position:absolute; top:0; left:50%; width:220px; height:260px; transform: translateX(-50%) scale(0.62); transform-origin: top center; }
+  .bean-widget svg{ width:220px; height:260px; overflow:visible; display:block; }
+
+  .bean-bubble{
+    position:absolute; top:2px; left:50%; transform:translate(-50%,-100%) scale(0.85);
+    background:#fff; color:var(--navy-deep); font-size:12.5px; font-weight:700;
+    padding:7px 13px; border-radius:999px; white-space:nowrap;
+    box-shadow:0 8px 20px rgba(27,42,107,0.22), 0 1px 4px rgba(27,42,107,0.1);
+    opacity:0; pointer-events:none; transition: opacity .22s ease, transform .22s ease; z-index:2;
+  }
+  .bean-bubble::after{
+    content:""; position:absolute; left:50%; bottom:-5px; transform:translateX(-50%);
+    border-width:6px 6px 0 6px; border-style:solid; border-color:#fff transparent transparent transparent;
+  }
+  .bean-bubble.show{ opacity:1; transform:translate(-50%,-112%) scale(1); }
+
+  .arm{ transform-box: view-box; transform-origin: 176px 165px; transition: transform .42s cubic-bezier(.34,1.56,.64,1), opacity .25s ease; }
+  .arm-left{ transform-origin: 44px 165px; }
+  .arm-right{ transform-origin: 176px 165px; }
+  /* --- Gira la cabeza/cuerpo suavemente según lo que se va escribiendo,
+   * igual que el ejemplo de referencia (el "perrito" que gira la cara al
+   * escribir el usuario) — pero aquí gira todo el granito. app.js actualiza
+   * la variable --rotate-head en cada tecla mientras escribes la cédula o
+   * el nombre. Va en su PROPIO grupo (bean-turn), separado del grupo que
+   * flota (bean-body-wrap), para que ambos movimientos no se pisen. --- */
+  .bean-turn{ transform-box: view-box; transform-origin: 110px 250px; --rotate-head: 0deg; transform: rotate(var(--rotate-head)); transition: transform .22s ease-out; }
+  .eyebrow{ transform-box: view-box; transition: transform .3s ease; }
+  .eyebrow-left{ transform-origin: 66px 76px; }
+  .eyebrow-right{ transform-origin: 154px 76px; }
+  .pupil, .glint{ transition: transform .2s ease; }
+  .eyelid{ transform-box: view-box; transform-origin: 75px 90px; transform: scaleY(.03); animation: beanBlink 3.8s ease-in-out infinite; }
+  .eye-right .eyelid{ transform-origin: 145px 90px; }
+  .thumb{ transform-box: view-box; transform-origin: 204px 204px; transform: scale(0); transition: transform .3s ease .1s; }
+  .tongue{ opacity:0; transition: opacity .2s ease; }
+  .mouth{ transition: d .25s ease; }
+  /* Brazos dedicados a la pose "tapando los ojos" — ver comentario en el
+   * SVG. Ocultos por defecto; .state-covering los muestra y esconde los
+   * brazos normales para que no se vean los dos pares a la vez. */
+  .cover-hand{ opacity:0; transition: opacity .25s ease; pointer-events:none; }
+
+  @keyframes beanBlink{ 0%,86%,100%{ transform: scaleY(.03); } 90%{ transform: scaleY(1); } 94%{ transform: scaleY(.03); } }
+  @keyframes beanFloat{ 0%,100%{ transform: translateY(0) rotate(-1.5deg); } 50%{ transform: translateY(-8px) rotate(1.5deg); } }
+  @keyframes beanThink{ 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(-3px); } }
+  @keyframes beanCelebrate{ 0%{ transform: translateY(0) rotate(0); } 25%{ transform: translateY(-18px) rotate(-8deg); } 50%{ transform: translateY(0) rotate(5deg); } 75%{ transform: translateY(-9px) rotate(-3deg); } 100%{ transform: translateY(0) rotate(0); } }
+  @keyframes beanShake{ 0%,100%{ transform: translateX(0) rotate(0); } 20%{ transform: translateX(-9px) rotate(-4deg); } 40%{ transform: translateX(8px) rotate(4deg); } 60%{ transform: translateX(-6px) rotate(-3deg); } 80%{ transform: translateX(6px) rotate(3deg); } }
+  @keyframes beanGlance{ 0%,100%{ transform: translateX(0); } 50%{ transform: translateX(4px); } }
+  /* Vaivén continuo de los brazos en reposo, para que el granito se sienta
+   * "vivo" incluso sin que el usuario esté interactuando. Los ángulos van
+   * y vuelven alrededor de la pose de reposo (-12deg / 12deg). */
+  @keyframes beanSwayLeft{ 0%,100%{ transform: rotate(-6deg); } 50%{ transform: rotate(-20deg); } }
+  @keyframes beanSwayRight{ 0%,100%{ transform: rotate(20deg); } 50%{ transform: rotate(6deg); } }
+
+  .bean-body-wrap{ animation: beanFloat 3.6s ease-in-out infinite; }
+
+  /* --- reposo: los brazos se mecen suavemente sin parar --- */
+  .state-idle .arm-left{ animation: beanSwayLeft 2.8s ease-in-out infinite; }
+  .state-idle .arm-right{ animation: beanSwayRight 2.8s ease-in-out infinite .25s; }
+
+  /* --- escribiendo la cédula: mirada breve de lado a lado --- */
+  .glance .pupil, .glance .glint{ animation: beanGlance .26s ease; }
+
+  /* --- escribiendo la clave: se tapa los ojos con las dos manos ---
+   * Las manos deben terminar centradas justo sobre cada ojo (centro del
+   * ojo izquierdo: 75,112 · derecho: 145,112 en las coords del viewBox).
+   * translate()+rotate() aquí resuelven exactamente esa posición final
+   * (no son valores "a ojo"): con el ángulo de giro elegido, el translate
+   * se calculó para que el centro de la mano caiga sobre el centro del
+   * ojo sin importar el punto de partida del brazo. */
+  .state-covering .bean-body-wrap{ animation: beanFloat 3.6s ease-in-out infinite; }
+  /* La mano es casi blanca (igual que el fondo del ojo), así que si solo
+   * la movemos encima del ojo se "camufla" y no se nota el gesto. Por eso,
+   * mientras tapa el ojo, además de agrandarla un poco (r:25) le damos un
+   * tono cálido con buen contraste y un borde más marcado. */
+  .state-covering .arm-left, .state-covering .arm-right{ opacity:0; transition: opacity .2s ease; }
+  .state-covering .cover-hand{ opacity:1; transition: opacity .3s ease .08s; }
+  .state-covering .eyelid{ animation: none; transform: scaleY(1); }
+  .state-covering .eyebrow-left{ transform: rotate(-6deg) translateY(-2px); }
+  .state-covering .eyebrow-right{ transform: rotate(6deg) translateY(-2px); }
+
+  /* --- verificando: se queda pensativo, un brazo se rasca la cabeza --- */
+  .state-thinking .bean-body-wrap{ animation: beanThink 1s ease-in-out infinite; }
+  .state-thinking .arm-left{ transform: rotate(-50deg); }
+  .state-thinking .arm-right{ transform: rotate(10deg); }
+  .state-thinking .eyebrow-left{ transform: rotate(-8deg); }
+  .state-thinking .eyebrow-right{ transform: rotate(4deg); }
+
+  /* --- clave correcta: pulgar arriba y sonrisononón --- */
+  .state-success .bean-body-wrap{ animation: beanCelebrate .8s ease; }
+  .state-success .arm-left{ transform: translate(-4px,10px) rotate(-6deg); }
+  .state-success .arm-right{ transform: translate(0px,-133px) rotate(-38deg); }
+  .state-success .thumb{ transform: scale(1); transition-delay: .32s; }
+  .state-success .eyebrow-left{ transform: rotate(-16deg) translateY(-2px); }
+  .state-success .eyebrow-right{ transform: rotate(16deg) translateY(-2px); }
+  .state-success .tongue{ opacity:1; }
+  .state-success .pupil{ transform: scale(1.08); }
+
+  /* --- clave incorrecta: se le caen los brazos y sacude la cabeza --- */
+  .state-error .bean-body-wrap{ animation: beanShake .5s ease; }
+  .state-error .arm-left{ transform: translate(-6px,16px) rotate(-14deg); }
+  .state-error .arm-right{ transform: translate(6px,16px) rotate(14deg); }
+  .state-error .eyelid{ animation: none; transform: scaleY(.55); }
+  .state-error .eyebrow-left{ transform: rotate(16deg) translateY(2px); }
+  .state-error .eyebrow-right{ transform: rotate(-16deg) translateY(2px); }
+
   /* ============ POLICY MODAL ============ */
   .modal-overlay{
     position:fixed; inset:0; background:rgba(19,30,82,0.55);
@@ -487,6 +607,81 @@
     <div class="brand-banner-inner"><img id="brandBannerImg" src="" alt="S&amp;D Sucden Coffee"></div>
   </div>
   <div class="login-card">
+    <div class="bean-stage">
+      <div class="bean-bubble" id="beanBubble"></div>
+      <div class="bean-widget state-idle" id="beanWidget">
+        <svg viewBox="0 0 220 260" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="beanBodyGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#96693f"></stop>
+              <stop offset="100%" stop-color="#5c3a1e"></stop>
+            </linearGradient>
+          </defs>
+          <g class="bean-turn" id="beanTurn">
+          <g class="bean-body-wrap">
+            <!-- piernas -->
+            <path d="M75,214 C60,228 48,232 44,248" stroke="#3d2412" stroke-width="10" fill="none" stroke-linecap="round"></path>
+            <ellipse cx="40" cy="252" rx="16" ry="8" fill="#3d2412" transform="rotate(-15 40 252)"></ellipse>
+            <path d="M145,214 C160,228 172,232 176,248" stroke="#3d2412" stroke-width="10" fill="none" stroke-linecap="round"></path>
+            <ellipse cx="180" cy="252" rx="16" ry="8" fill="#3d2412" transform="rotate(15 180 252)"></ellipse>
+
+            <!-- cuerpo -->
+            <ellipse cx="110" cy="128" rx="92" ry="104" fill="url(#beanBodyGrad)" stroke="#3d2412" stroke-width="4"></ellipse>
+            <ellipse cx="76" cy="82" rx="28" ry="18" fill="#ffffff" opacity="0.16" transform="rotate(-20 76 82)"></ellipse>
+            <path d="M110,24 C88,55 132,85 108,118 C86,150 132,178 108,214 C92,234 116,240 108,250" stroke="#3d2412" stroke-width="7" fill="none" stroke-linecap="round"></path>
+
+            <!-- cara -->
+            <path class="eyebrow eyebrow-left" d="M50,80 Q66,68 82,78" stroke="#3d2412" stroke-width="6" fill="none" stroke-linecap="round"></path>
+            <path class="eyebrow eyebrow-right" d="M138,78 Q154,68 170,80" stroke="#3d2412" stroke-width="6" fill="none" stroke-linecap="round"></path>
+
+            <g class="eye eye-left">
+              <circle cx="75" cy="112" r="24" fill="#ffffff" stroke="#3d2412" stroke-width="3"></circle>
+              <circle class="pupil" cx="75" cy="112" r="11" fill="#2b6cb0"></circle>
+              <circle class="glint" cx="70" cy="106" r="3.5" fill="#ffffff"></circle>
+              <rect class="eyelid" x="51" y="88" width="48" height="48" fill="#5c3a1e"></rect>
+            </g>
+            <g class="eye eye-right">
+              <circle cx="145" cy="112" r="24" fill="#ffffff" stroke="#3d2412" stroke-width="3"></circle>
+              <circle class="pupil" cx="145" cy="112" r="11" fill="#2b6cb0"></circle>
+              <circle class="glint" cx="140" cy="106" r="3.5" fill="#ffffff"></circle>
+              <rect class="eyelid" x="121" y="88" width="48" height="48" fill="#5c3a1e"></rect>
+            </g>
+
+            <path class="mouth" id="beanMouth" d="M82,168 Q110,186 138,168" stroke="#3d2412" stroke-width="6" fill="none" stroke-linecap="round"></path>
+            <ellipse class="tongue" cx="110" cy="181" rx="13" ry="8" fill="#c1666b"></ellipse>
+
+            <!-- brazo izquierdo (delante de la cara, para poder tapar el ojo) -->
+            <g class="arm arm-left">
+              <line x1="44" y1="165" x2="16" y2="204" stroke="#6b4426" stroke-width="24" stroke-linecap="round"></line>
+              <circle class="hand" cx="16" cy="204" r="20" fill="#f5f1ea" stroke="#d8cfc0" stroke-width="2"></circle>
+            </g>
+
+            <!-- brazo derecho (delante, con pulgar para el "¡genial!") -->
+            <g class="arm arm-right">
+              <line x1="176" y1="165" x2="204" y2="204" stroke="#6b4426" stroke-width="24" stroke-linecap="round"></line>
+              <circle class="hand" cx="204" cy="204" r="20" fill="#f5f1ea" stroke="#d8cfc0" stroke-width="2"></circle>
+              <ellipse class="thumb" cx="192" cy="184" rx="7" ry="12" fill="#f5f1ea" stroke="#d8cfc0" stroke-width="2" transform="rotate(-25 192 184)"></ellipse>
+            </g>
+
+            <!-- brazos "tapando los ojos": son un dibujo aparte (no el mismo
+                 brazo de reposo movido con transform), para que el codo se
+                 vea naciendo del costado del cuerpo y llegue en una curva
+                 natural hasta el ojo, en vez de "teletransportarse" ahí.
+                 Están ocultos (opacity:0) y solo se muestran en
+                 .state-covering (ver CSS). -->
+            <g class="cover-hand cover-hand-left">
+              <path d="M50,150 Q16,102 75,112" stroke="#3d2412" stroke-width="20" fill="none" stroke-linecap="round"></path>
+              <circle cx="75" cy="112" r="25" fill="#e3b880" stroke="#3d2412" stroke-width="3"></circle>
+            </g>
+            <g class="cover-hand cover-hand-right">
+              <path d="M170,150 Q204,102 145,112" stroke="#3d2412" stroke-width="20" fill="none" stroke-linecap="round"></path>
+              <circle cx="145" cy="112" r="25" fill="#e3b880" stroke="#3d2412" stroke-width="3"></circle>
+            </g>
+          </g>
+          </g>
+        </svg>
+      </div>
+    </div>
     <h1 id="loginTitle" style="margin-top:2px;">Bienvenido</h1>
     <p class="sub" id="loginSub">Sistema de Gestión de Despacho — S&amp;D Sucden</p>
 
@@ -723,6 +918,71 @@
         setTimeout(function () { el.classList.remove('visible'); }, 350);
       }, wait);
     };
+  })();
+
+  // ---- Mascota interactiva: granito de café ----
+  // Estados posibles: 'idle', 'covering' (tapándose los ojos), 'thinking'
+  // (verificando), 'success' (clave correcta) y 'error' (clave incorrecta).
+  // app.js llama a BeanMascot.setState(...) y BeanMascot.glance() en los
+  // momentos oportunos del formulario de login (ver setupLogin en app.js).
+  window.BeanMascot = (function () {
+    var wrapEl = null, bubbleEl = null, turnEl = null;
+    var successMsgs = ['¡Genial!', '¡Muy bien!', '¡Perfecto!'];
+    var errorMsgs = ['¡Uy, esa no era!', 'Intenta de nuevo'];
+
+    function wrap() { return wrapEl || (wrapEl = document.getElementById('beanWidget')); }
+    function bubble() { return bubbleEl || (bubbleEl = document.getElementById('beanBubble')); }
+    // El grupo <g class="bean-turn" id="beanTurn"> es el que realmente gira.
+    // IMPORTANTE: la variable --rotate-head se debe fijar en ESTE elemento
+    // (no en #beanWidget) porque la regla CSS ".bean-turn{ --rotate-head:0deg }"
+    // declara un valor propio para el elemento; si se fijara en un ancestro,
+    // ese valor heredado quedaría tapado por la declaración local y la
+    // cabeza nunca giraría.
+    function turn() { return turnEl || (turnEl = document.getElementById('beanTurn')); }
+    function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+    function showBubble(text) {
+      var b = bubble();
+      if (!b) return;
+      b.textContent = text;
+      b.classList.add('show');
+    }
+    function hideBubble() {
+      var b = bubble();
+      if (b) b.classList.remove('show');
+    }
+
+    function setState(state) {
+      var w = wrap();
+      if (!w) return;
+      w.className = 'bean-widget state-' + state;
+      if (state === 'success') showBubble(pick(successMsgs));
+      else if (state === 'error') showBubble(pick(errorMsgs));
+      else hideBubble();
+    }
+
+    function glance() {
+      var w = wrap();
+      if (!w || w.className.indexOf('state-covering') !== -1 || w.className.indexOf('state-thinking') !== -1) return;
+      w.classList.remove('glance');
+      void w.offsetWidth; // reinicia la animación aunque se dispare seguido
+      w.classList.add('glance');
+    }
+
+    // Gira el granito según cuánto se ha escrito (como el "perrito" que
+    // gira la cara al escribir el usuario). `chars` = longitud del texto.
+    function turnHead(chars) {
+      var t = turn();
+      if (!t) return;
+      var angle = Math.max(-16, Math.min(16, (chars - 4) * 1.8));
+      t.style.setProperty('--rotate-head', angle + 'deg');
+    }
+    function resetHead() {
+      var t = turn();
+      if (t) t.style.setProperty('--rotate-head', '0deg');
+    }
+
+    return { setState: setState, glance: glance, turnHead: turnHead, resetHead: resetHead };
   })();
 </script>
 <script src="app.js"></script>
