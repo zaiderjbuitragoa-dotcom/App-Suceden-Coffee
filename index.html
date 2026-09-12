@@ -351,20 +351,36 @@
     border-radius:10px; background: var(--err); color:#fff; font-size:11px; font-weight:800;
     align-items:center; justify-content:center; border:2px solid var(--navy-deep); line-height:1;
   }
+  /* position:fixed a propósito: la posición real (top/left) se calcula en
+     JS (positionNotifPanel) a partir de dónde está la campana en pantalla,
+     y se ajusta para que el panel NUNCA se salga por el borde izquierdo o
+     derecho de la pantalla (antes, con position:absolute + right:0 anclado
+     al botón, en móvil el panel quedaba cortado y la placa de cada
+     reporte no se alcanzaba a ver). */
   .notif-panel{
-    display:none; position:absolute; top:calc(100% + 10px); right:0; width:300px; max-height:360px;
+    display:none; position:fixed; width:300px; max-width:calc(100vw - 24px); max-height:360px;
     background:#fff; border-radius:14px; box-shadow: 0 14px 34px rgba(11,20,60,0.28);
-    overflow:hidden; z-index:50; color: var(--ink);
+    overflow:hidden; z-index:1000; color: var(--ink);
   }
   .notif-panel.open{ display:flex; flex-direction:column; }
-  .notif-title{ padding:13px 16px 10px; font-size:13.5px; font-weight:800; color:var(--navy-deep); border-bottom:1px solid var(--line); }
+  .notif-title{ padding:13px 16px 10px; font-size:13.5px; font-weight:800; color:var(--navy-deep); border-bottom:1px solid var(--line); flex-shrink:0; }
   .notif-list{ overflow-y:auto; max-height:300px; }
-  .notif-item{ padding:11px 16px; border-bottom:1px solid var(--line); cursor:pointer; transition: background .12s ease; }
+  .notif-item{ padding:11px 16px; border-bottom:1px solid var(--line); cursor:pointer; transition: background .12s ease; display:flex; align-items:center; justify-content:space-between; gap:8px; }
   .notif-item:last-child{ border-bottom:none; }
   .notif-item:hover{ background: var(--ok-bg); }
-  .notif-item-plate{ font-weight:800; font-size:14px; color:var(--navy-deep); letter-spacing:0.03em; }
-  .notif-item-meta{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .notif-item-plate{ font-weight:800; font-size:14px; color:var(--navy-deep); letter-spacing:0.03em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .notif-item-meta{ font-size:12px; color:var(--ink-soft); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .notif-item-icon{ flex-shrink:0; font-size:15px; }
   .notif-empty{ padding:22px 16px; text-align:center; font-size:13px; color:var(--ink-soft); }
+
+  /* ---- Insignia "sin fotos" dentro de la lista de registros guardados ----
+     Así el usuario ve de un vistazo, sin abrir cada reporte, a cuáles les
+     falta imagen (mismo dato que usa la campana). */
+  .no-photo-badge{
+    display:inline-flex; align-items:center; gap:4px; margin-left:8px; padding:2px 8px;
+    background: var(--warn-bg); color: var(--warn-ink); border:1px solid #E9C98C;
+    border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; vertical-align:middle;
+  }
 
   .greeting{ max-width:900px; margin: 18px auto 0; }
   .greeting h2{ font-size: 19px; margin:0 0 3px; }
