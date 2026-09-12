@@ -319,6 +319,12 @@ function logout() {
   renderNotifBadge();
   const notifPanel = document.getElementById('notifPanel');
   if (notifPanel) notifPanel.classList.remove('open');
+  // El botón flotante "‹ volver" vive fuera de #appScreen (para quedar fijo
+  // en pantalla sin importar el scroll), así que ocultar #appScreen NO lo
+  // oculta a él: sin esto, quedaba "pegado" y seguía viéndose encima de la
+  // pantalla de inicio de sesión después de salir.
+  const floatBtn = document.getElementById('floatingBack');
+  if (floatBtn) floatBtn.classList.remove('show');
   document.getElementById('appScreen').style.display = 'none';
   document.getElementById('adminBtn').style.display = 'none'; // por si el usuario anterior era admin
   document.getElementById('loginScreen').style.display = 'flex';
@@ -517,6 +523,12 @@ async function refreshPendingBadge() {
   // foto), se vuelve a pintar para que no quede desactualizado en pantalla.
   const panel = document.getElementById('notifPanel');
   if (panel && panel.classList.contains('open')) renderNotifPanel();
+  // Si la galería de "Registros guardados" está visible, se refresca también
+  // para que la insignia "Sin fotos" de cada tarjeta quede al día.
+  const galleryPanel = document.getElementById('panel-gallery');
+  if (currentGroup && galleryPanel && galleryPanel.classList.contains('active') && recordsCache[currentGroup]) {
+    renderGallery();
+  }
 }
 
 function allPendingPhotos() {
@@ -547,7 +559,16 @@ function setupNotifBell() {
     e.stopPropagation();
     const willOpen = !panel.classList.contains('open');
     panel.classList.toggle('open', willOpen);
-    if (willOpen) renderNotifPanel();
+    if (willOpen) {
+      renderNotifPanel();
+      positionNotifPanel();
+    }
+  });
+
+  // Si la ventana cambia de tamaño u orientación con el panel abierto, se
+  // recalcula la posición para que siga completamente visible.
+  window.addEventListener('resize', () => {
+    if (panel.classList.contains('open')) positionNotifPanel();
   });
 
   document.addEventListener('click', (e) => {
@@ -555,6 +576,31 @@ function setupNotifBell() {
       panel.classList.remove('open');
     }
   });
+}
+
+/* Calcula dónde debe quedar el panel de notificaciones a partir de la
+ * posición real de la campana en pantalla (position:fixed + JS, en vez de
+ * position:absolute + right:0), y lo "pega" al viewport para que nunca se
+ * corte por el borde izquierdo o derecho — el bug que hacía que, en
+ * móviles, no se alcanzara a leer la placa de cada reporte pendiente. */
+function positionNotifPanel() {
+  const btn = document.getElementById('notifBtn');
+  const panel = document.getElementById('notifPanel');
+  if (!btn || !panel) return;
+  const margin = 12;
+  const btnRect = btn.getBoundingClientRect();
+  const panelWidth = Math.min(300, window.innerWidth - margin * 2);
+
+  let left = btnRect.right - panelWidth; // alineado por defecto al borde derecho del botón
+  left = Math.max(margin, Math.min(left, window.innerWidth - panelWidth - margin));
+
+  let top = btnRect.bottom + 10;
+  const maxTop = window.innerHeight - margin - 100; // deja al menos algo de panel visible
+  if (top > maxTop) top = maxTop;
+
+  panel.style.left = left + 'px';
+  panel.style.top = top + 'px';
+  panel.style.width = panelWidth + 'px';
 }
 
 function renderNotifPanel() {
@@ -575,8 +621,11 @@ function renderNotifPanel() {
     const row = document.createElement('div');
     row.className = 'notif-item';
     row.innerHTML =
-      '<div class="notif-item-plate">' + escapeHtml(item.placa || 'Sin placa') + '</div>' +
-      '<div class="notif-item-meta">' + escapeHtml(formatDate(item.fecha)) + ' · ' + escapeHtml(item.responsable || 'Sin responsable') + '</div>';
+      '<div style="min-width:0;">' +
+        '<div class="notif-item-plate">' + escapeHtml(item.placa || 'Sin placa') + '</div>' +
+        '<div class="notif-item-meta">' + escapeHtml(formatDate(item.fecha)) + ' · ' + escapeHtml(item.responsable || 'Sin responsable') + '</div>' +
+      '</div>' +
+      '<span class="notif-item-icon" title="Sin fotos adicionales">⚠</span>';
     row.addEventListener('click', () => goToPendingReport(item));
     listEl.appendChild(row);
   });
@@ -882,16 +931,28 @@ function renderGallery() {
     return;
   }
 
+  // Ids de reportes de este grupo que la campana ya marcó como "sin fotos
+  // adicionales", para pintarles la insignia de aviso aquí mismo en la
+  // lista, sin que el usuario tenga que abrir cada registro uno por uno.
+  const pendingIds = new Set(
+    (pendingPhotosCache[currentGroup] || [])
+      .filter(p => String(p.group) === String(currentGroup))
+      .map(p => String(p.id))
+  );
+
   listEl.innerHTML = '';
   filtered.forEach(rec => {
     const reportId = rec['Id_Reporte'];
     const div = document.createElement('div');
     div.className = 'report';
     div.dataset.reportId = reportId;
+    const noPhotoBadge = pendingIds.has(String(reportId))
+      ? '<span class="no-photo-badge" title="Este reporte todavía no tiene fotos adicionales">⚠ Sin fotos</span>'
+      : '';
     div.innerHTML =
       '<div class="report-head">' +
         '<div>' +
-          '<div class="plate">' + escapeHtml(rec['Placa Del Vehiculo '] || 'Sin placa') + '</div>' +
+          '<div class="plate">' + escapeHtml(rec['Placa Del Vehiculo '] || 'Sin placa') + noPhotoBadge + '</div>' +
           '<div class="meta">' + escapeHtml(formatDate(rec['Fecha '])) + ' · ' + escapeHtml(rec['Nom: Del Respnsable del Despacho '] || '') + '</div>' +
         '</div>' +
         '<span class="chevron">&#9662;</span>' +
