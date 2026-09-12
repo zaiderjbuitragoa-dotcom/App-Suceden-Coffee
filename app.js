@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupPolicyModal();
   setupLogin();
   setupApp();
+  setupNotifBell();
   setupUnsavedChangesWarning();
 
   const saved = localStorage.getItem('sucden_user');
@@ -314,6 +315,10 @@ function logout() {
   localStorage.removeItem('sucden_user');
   currentUser = null;
   recordsCache = { orquidea: null };
+  pendingPhotosCache = { orquidea: [] };
+  renderNotifBadge();
+  const notifPanel = document.getElementById('notifPanel');
+  if (notifPanel) notifPanel.classList.remove('open');
   document.getElementById('appScreen').style.display = 'none';
   document.getElementById('adminBtn').style.display = 'none'; // por si el usuario anterior era admin
   document.getElementById('loginScreen').style.display = 'flex';
@@ -486,6 +491,124 @@ async function refreshHubCounts() {
       }
     } catch (e) { /* silencioso: el contador simplemente no se actualiza esta vez */ }
   });
+  refreshPendingBadge();
+}
+
+/* ------------------------- CAMPANA: REPORTES SIN FOTOS ------------------------- */
+
+let pendingPhotosCache = { orquidea: [] };
+
+/* Pide al backend, por cada grupo, la lista de reportes que todavía no
+ * tienen ninguna foto adicional cargada, y actualiza la campana. Se llama
+ * al entrar a la app y después de cualquier acción que pueda cambiar el
+ * estado de fotos de un reporte (guardar, borrar reporte, borrar foto). */
+async function refreshPendingBadge() {
+  const groups = Object.keys(GROUP_LABELS);
+  for (const group of groups) {
+    try {
+      const data = await fetchJson(WEB_APP_URL + '?action=pendingPhotos&group=' + group);
+      if (data.ok) {
+        pendingPhotosCache[group] = data.pending.map(p => Object.assign({ group }, p));
+      }
+    } catch (e) { /* silencioso: la campana simplemente no se actualiza esta vez */ }
+  }
+  renderNotifBadge();
+  // Si el panel está abierto mientras se refresca (p.ej. tras subir una
+  // foto), se vuelve a pintar para que no quede desactualizado en pantalla.
+  const panel = document.getElementById('notifPanel');
+  if (panel && panel.classList.contains('open')) renderNotifPanel();
+}
+
+function allPendingPhotos() {
+  return Object.keys(pendingPhotosCache).reduce((acc, g) => acc.concat(pendingPhotosCache[g] || []), []);
+}
+
+function renderNotifBadge() {
+  const badge = document.getElementById('notifBadge');
+  const btn = document.getElementById('notifBtn');
+  if (!badge || !btn) return;
+  const total = allPendingPhotos().length;
+  if (total > 0) {
+    badge.textContent = total > 99 ? '99+' : String(total);
+    badge.style.display = 'flex';
+    btn.classList.add('has-notifs');
+  } else {
+    badge.style.display = 'none';
+    btn.classList.remove('has-notifs');
+  }
+}
+
+function setupNotifBell() {
+  const btn = document.getElementById('notifBtn');
+  const panel = document.getElementById('notifPanel');
+  if (!btn || !panel) return;
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const willOpen = !panel.classList.contains('open');
+    panel.classList.toggle('open', willOpen);
+    if (willOpen) renderNotifPanel();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (panel.classList.contains('open') && !panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+      panel.classList.remove('open');
+    }
+  });
+}
+
+function renderNotifPanel() {
+  const panel = document.getElementById('notifPanel');
+  if (!panel) return;
+  const all = allPendingPhotos();
+
+  if (!all.length) {
+    panel.innerHTML = '<div class="notif-empty">🎉 Todos los reportes tienen fotos.</div>';
+    return;
+  }
+
+  panel.innerHTML =
+    '<div class="notif-title">Pendientes de fotos (' + all.length + ')</div>' +
+    '<div class="notif-list"></div>';
+  const listEl = panel.querySelector('.notif-list');
+  all.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'notif-item';
+    row.innerHTML =
+      '<div class="notif-item-plate">' + escapeHtml(item.placa || 'Sin placa') + '</div>' +
+      '<div class="notif-item-meta">' + escapeHtml(formatDate(item.fecha)) + ' · ' + escapeHtml(item.responsable || 'Sin responsable') + '</div>';
+    row.addEventListener('click', () => goToPendingReport(item));
+    listEl.appendChild(row);
+  });
+}
+
+/* Lleva de un tirón desde la campana hasta el reporte concreto: abre su
+ * grupo, cambia a la pestaña de "Registros guardados", limpia el buscador
+ * (para asegurar que el reporte esté entre los que se muestran) y despliega
+ * su detalle con scroll automático. */
+function goToPendingReport(item) {
+  document.getElementById('notifPanel').classList.remove('open');
+  openGroup(item.group);
+
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#panel-group .panel').forEach(p => p.classList.remove('active'));
+  document.querySelector('.tab[data-tab="gallery"]').classList.add('active');
+  document.getElementById('panel-gallery').classList.add('active');
+  const exportBtnEl = document.getElementById('exportCsvBtn');
+  if (exportBtnEl) exportBtnEl.classList.remove('is-hidden');
+
+  const searchEl = document.getElementById('gallerySearch');
+  if (searchEl) searchEl.value = '';
+
+  loadGallery().then(() => {
+    setTimeout(() => {
+      const target = document.querySelector('.report[data-report-id="' + CSS.escape(String(item.id)) + '"]');
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (!target.classList.contains('open')) target.querySelector('.report-head').click();
+      }
+    }, 150);
+  });
 }
 
 function fileToBase64(file) {
@@ -623,6 +746,7 @@ async function onSubmit(e) {
     statusEl.textContent = isEdit ? 'Reporte actualizado correctamente.' : 'Reporte guardado correctamente.';
     resetForm();
     recordsCache[currentGroup] = null;
+    refreshPendingBadge(); // el reporte pudo dejar de estar "pendiente de fotos"
   } catch (err) {
     statusEl.className = 'status err';
     statusEl.textContent = 'No se pudo guardar: ' + err.message;
@@ -763,6 +887,7 @@ function renderGallery() {
     const reportId = rec['Id_Reporte'];
     const div = document.createElement('div');
     div.className = 'report';
+    div.dataset.reportId = reportId;
     div.innerHTML =
       '<div class="report-head">' +
         '<div>' +
@@ -1074,6 +1199,7 @@ async function deletePhoto(img, cell, btn) {
     // Animación de salida y luego se quita del DOM.
     cell.classList.add('removing');
     setTimeout(() => cell.remove(), 180);
+    refreshPendingBadge(); // si era su última foto, el reporte vuelve a quedar "pendiente"
   } catch (err) {
     btn.classList.remove('is-loading');
     btn.disabled = false;
