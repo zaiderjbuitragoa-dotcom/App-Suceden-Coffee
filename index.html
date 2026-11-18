@@ -167,6 +167,40 @@
   .status.err{ display:block; color: var(--err); background: var(--err-bg); padding:9px 12px; }
   .login-footer{ font-size:11px; color:#98A2B3; margin-top:22px; }
 
+  /* ============ ACCESO: BLOQUEO Y RECUPERACIÓN DE CLAVE ============ */
+  .lock-note{ margin-top:10px; font-size:12.5px; color:var(--ink-soft); text-align:left; line-height:1.45; display:none; }
+  .lock-note.show{ display:block; }
+  .lock-note button{ background:none; border:none; padding:0; color:var(--navy); font-weight:800; cursor:pointer; font-family:inherit; font-size:inherit; text-decoration:underline; text-underline-offset:2px; }
+  button.primary.is-locked{ background:#98A2B3; box-shadow:none; cursor:not-allowed; opacity:1; }
+  #recoverBox{ display:none; text-align:left; }
+  .rec-tabs{ display:flex; gap:6px; background:#E9F1FC; padding:4px; border-radius:12px; margin-bottom:16px; }
+  .rec-tabs button{ flex:1; border:none; background:transparent; padding:9px 6px; border-radius:9px; font-size:12.5px; font-weight:700; color:var(--ink-soft); cursor:pointer; font-family:inherit; }
+  .rec-tabs button.on{ background:#fff; color:var(--navy-deep); box-shadow:0 1px 4px rgba(27,42,107,.18); }
+  .rec-help{ font-size:13px; color:var(--ink-soft); line-height:1.5; margin:0 0 14px; }
+  #recCode{ text-transform:uppercase; letter-spacing:.18em; font-weight:800; font-size:18px; text-align:center; font-variant-numeric:tabular-nums; }
+  .pw-hint{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; }
+  .pw-hint.bad{ color:var(--err); }
+
+  /* ---- Panel Usuarios: recuperación de claves ---- */
+  .rec-item{ border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px; background:#fff; }
+  .rec-item.nuevo{ border-color:#E9C98C; background:#FFFBF0; }
+  .rec-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .rec-name{ font-weight:800; color:var(--navy-deep); font-size:14.5px; }
+  .rec-meta{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .rec-pill{ font-size:11px; font-weight:800; padding:3px 9px; border-radius:999px; background:#FFF3D6; color:#8A5A00; white-space:nowrap; }
+  .rec-pill.ok{ background:var(--ok-bg); color:var(--ok); }
+  .rec-pill.old{ background:#E8ECF4; color:var(--ink-soft); }
+  .rec-code{ margin-top:10px; background:#F0F4FA; border:1px dashed var(--navy); border-radius:12px; padding:12px; text-align:center; }
+  .rec-code b{ display:block; font-size:28px; letter-spacing:.22em; color:var(--navy-deep); font-variant-numeric:tabular-nums; user-select:all; }
+  .rec-code span{ display:block; font-size:12px; color:var(--ink-soft); margin-top:3px; }
+  .rec-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .rec-actions button, .rec-actions a{ border:1px solid var(--line); background:#fff; color:var(--navy-deep); border-radius:9px; padding:8px 12px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit; text-decoration:none; display:inline-flex; align-items:center; }
+  .rec-actions .main{ background:var(--navy); color:#fff; border-color:var(--navy); }
+  .rec-actions .danger{ color:var(--err); }
+  .rec-actions button:disabled{ opacity:.6; cursor:default; }
+  .rec-count{ display:inline-flex; min-width:20px; height:20px; padding:0 6px; border-radius:10px; background:var(--err); color:#fff; font-size:11px; font-weight:800; align-items:center; justify-content:center; margin-left:8px; vertical-align:middle; box-sizing:border-box; }
+
+
   /* ============ MASCOTA: GRANITO DE CAFÉ ============
    * El <svg> se dibuja a su tamaño real (220x260) y todo el widget se
    * achica con scale(), para que los puntos de giro de los brazos caigan
@@ -784,8 +818,48 @@ body{ height:auto; min-height:100vh; min-height:100dvh; background: linear-gradi
       <button type="submit" class="primary" id="loginBtn"><span class="btn-label" id="loginBtnLabel">Ingresar al sistema</span></button>
       <div class="status" id="loginStatus"></div>
     </form>
-    <button type="button" class="link" id="showRegister">¿No tienes cuenta? Regístrate aquí</button>
-    <button type="button" class="link" id="showRecover" style="margin-top:2px; font-size:12.5px; color:var(--indigo);">¿Olvidaste tu contraseña o estás bloqueado?</button>
+    <div class="lock-note" id="lockNote"></div>
+    <button type="button" class="link" id="showForgot">¿Olvidaste tu clave?</button>
+    <button type="button" class="link" id="showRegister" style="display:block;margin:0 auto;">¿No tienes cuenta? Regístrate aquí</button>
+
+    <div id="recoverBox">
+      <div class="rec-tabs" role="tablist">
+        <button type="button" class="on" id="recTabAsk" role="tab">1 · Avisar al administrador</button>
+        <button type="button" id="recTabCode" role="tab">2 · Ya tengo mi código</button>
+      </div>
+      <form id="recAskForm" autocomplete="off">
+        <p class="rec-help">Escribe tu cédula. El administrador recibe un aviso en su campana y te entrega un <b>código de recuperación válido por 12 horas</b> (por llamada o WhatsApp).</p>
+        <div class="field">
+          <label for="recAskCedula">Usuario o cédula</label>
+          <input type="text" id="recAskCedula" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="40" required>
+        </div>
+        <button type="submit" class="primary" id="recAskBtn"><span class="btn-label" id="recAskLabel">Avisar al administrador</span></button>
+        <div class="status" id="recAskStatus"></div>
+      </form>
+      <form id="recCodeForm" style="display:none;" autocomplete="off">
+        <p class="rec-help">Escribe el código que te dio el administrador y elige tu nueva clave.</p>
+        <div class="field">
+          <label for="recCedula">Usuario o cédula</label>
+          <input type="text" id="recCedula" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="40" required>
+        </div>
+        <div class="field">
+          <label for="recCode">Código de recuperación</label>
+          <input type="text" id="recCode" placeholder="XXXX-XXXX" maxlength="12" autocapitalize="characters" autocorrect="off" spellcheck="false" required>
+        </div>
+        <div class="field">
+          <label for="recNew">Nueva contraseña</label>
+          <input type="password" id="recNew" autocomplete="new-password" minlength="6" maxlength="100" required>
+          <div class="pw-hint" id="recNewHint">Mínimo 6 caracteres.</div>
+        </div>
+        <div class="field">
+          <label for="recNew2">Repite la nueva contraseña</label>
+          <input type="password" id="recNew2" autocomplete="new-password" minlength="6" maxlength="100" required>
+        </div>
+        <button type="submit" class="primary" id="recCodeBtn"><span class="btn-label" id="recCodeLabel">Cambiar mi clave</span></button>
+        <div class="status" id="recCodeStatus"></div>
+      </form>
+      <button type="button" class="link" id="recBack">‹ Volver a iniciar sesión</button>
+    </div>
 
     <form id="registerForm" style="display:none;">
       <div class="field">
@@ -808,31 +882,6 @@ body{ height:auto; min-height:100vh; min-height:100dvh; background: linear-gradi
       <div class="status" id="registerStatus"></div>
     </form>
     <button type="button" class="link" id="showLogin" style="display:none;">Ya tengo cuenta, iniciar sesión</button>
-
-    <form id="recoverForm" style="display:none; text-align:left;">
-      <div style="background:#EEF4FF; border:1px solid #C7D9FF; border-radius:12px; padding:11px 13px; margin-bottom:14px; font-size:12px; color:#1B2A6B; line-height:1.45;">
-        🔒 <strong>Recuperación de cuenta:</strong> Si tu cuenta fue bloqueada o no recuerdas tu clave, ingresa el código de 6 dígitos emitido por el administrador (vigencia 12 horas).
-      </div>
-      <div class="field">
-        <label for="recCedula">Cédula o usuario</label>
-        <input type="text" id="recCedula" inputmode="text" placeholder="Número de cédula" required>
-      </div>
-      <div class="field">
-        <label for="recCodigo">Código de recuperación (6 dígitos)</label>
-        <input type="text" id="recCodigo" inputmode="numeric" maxlength="6" placeholder="000000" style="font-size:20px; letter-spacing:5px; font-weight:800; text-align:center; font-family:monospace;" required>
-      </div>
-      <div class="field">
-        <label for="recClave">Nueva contraseña</label>
-        <input type="password" id="recClave" placeholder="Mínimo 4 caracteres" required>
-      </div>
-      <div class="field">
-        <label for="recClaveConfirm">Confirmar nueva contraseña</label>
-        <input type="password" id="recClaveConfirm" placeholder="Repite tu nueva contraseña" required>
-      </div>
-      <button type="submit" class="primary" id="recoverBtn"><span class="btn-label" id="recoverBtnLabel">Desbloquear y cambiar clave</span></button>
-      <div class="status" id="recoverStatus"></div>
-    </form>
-    <button type="button" class="link" id="showLoginFromRecover" style="display:none;">Volver al inicio de sesión</button>
 
     <div class="login-footer">Diseñado y creado por Zaider J. Buitrago A.</div>
   </div>
@@ -978,6 +1027,11 @@ body{ height:auto; min-height:100vh; min-height:100dvh; background: linear-gradi
     <!-- ADMIN -->
     <section id="panel-admin">
       <div class="back-row" id="backFromAdmin">‹ Volver al inicio</div>
+      <div class="card" id="recoveryCard" style="display:none;">
+        <h2 style="font-size:15px; margin:0 0 4px;">Recuperación de claves <span class="rec-count" id="recoveryCountBadge" style="display:none;"></span></h2>
+        <p style="font-size:13px; color:var(--ink-soft); margin:0 0 14px;">Si alguien se bloquea o olvida su clave, aparece aquí. Confirma que es la persona, genera un código (vale 12 horas) y entrégaselo.</p>
+        <div id="recoveryList"><div class="empty">Sin solicitudes.</div></div>
+      </div>
       <div class="card">
         <h2 style="font-size:15px; margin:0 0 4px;">Solicitudes pendientes</h2>
         <p style="font-size:13px; color:var(--ink-soft); margin:0 0 14px;">Autoriza o rechaza el acceso de nuevos colaboradores.</p>
@@ -1096,11 +1150,12 @@ body{ height:auto; min-height:100vh; min-height:100dvh; background: linear-gradi
     return { setState: setState, glance: glance, turnHead: turnHead, resetHead: resetHead };
   })();
 </script>
+<script src="acceso.js?v=2"></script>
 <script src="app.js?v=3"></script>
 <script src="sidebar.js?v=3"></script>
-<script src="dashboard.js?v=3"></script>
-<script src="editar-usuarios.js?v=3"></script>
-<script src="chat.js?v=3"></script>
+<script src="dashboard.js?v=2"></script>
+<script src="editar-usuarios.js?v=2"></script>
+<script src="chat.js?v=2"></script>
 
 </body>
 </html>

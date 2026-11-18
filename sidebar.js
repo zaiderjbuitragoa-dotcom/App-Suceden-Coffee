@@ -200,10 +200,14 @@
   function click(id) { var e = $(id); if (e) e.click(); }
   function closeMenu() { side.classList.remove('open'); overlay.classList.remove('show'); }
 
+  // currentUser vive en app.js como "let" (no cuelga de window): se lee igual que en chat.js
+  function curUser() { return (typeof currentUser !== 'undefined') ? currentUser : null; }
+  function isStdUser() { var u = curUser(); return !!u && u.rol !== 'admin'; }
+
   function goHome() {
     if (vis($('panel-admin'))) click('backFromAdmin');
     else if (vis($('panel-group'))) {
-      if (window.currentUser && window.currentUser.rol !== 'admin') {
+      if (isStdUser()) {
         openTab('form');
       } else {
         click('backToHub');
@@ -221,7 +225,7 @@
   }
 
   navHome.addEventListener('click', function () {
-    if (window.currentUser && window.currentUser.rol !== 'admin') {
+    if (isStdUser()) {
       openTab('form');
     } else {
       goHome();
@@ -243,8 +247,6 @@
   }
   function sync() {
     var admin = vis($('panel-admin')), group = vis($('panel-group')), hub = vis($('panel-hub'));
-    var isAdmin = window.currentUser && window.currentUser.rol === 'admin';
-    if (navHome) navHome.style.display = isAdmin ? '' : 'none';
     var at = app.querySelector('.tab.active');
     var tab = at ? at.getAttribute('data-tab') : '';
     setActive(navHome, hub && !admin && !group);
@@ -254,6 +256,8 @@
     if (cd && cc && cc.textContent !== cd.textContent) cc.textContent = cd.textContent;
     setActive(navGal, group && tab === 'gallery');
     setActive(adminBtn, admin);
+    var cu = curUser();
+    if (navHome && cu) navHome.style.display = cu.rol === 'admin' ? '' : 'none';
 
     var gt = $('greetingText');
     if (gt) {

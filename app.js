@@ -32,6 +32,7 @@ async function fetchJson(url, options, attempts) {
       const res = await fetch(url, options);
       if (!res.ok) throw new Error('El servidor respondió con estado ' + res.status);
       const data = await res.json();
+      if (data && data.code === 'AUTH') sessionExpired();   // el servidor ya no reconoce la sesión
       return data;
     } catch (err) {
       lastErr = err;
@@ -451,8 +452,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const saved = localStorage.getItem('sucden_user');
   if (saved) {
-    try { currentUser = JSON.parse(saved); showApp(); }
-    catch (e) { localStorage.removeItem('sucden_user'); }
+    try {
+      const u = JSON.parse(saved);
+      if (u && u.token) { currentUser = u; showApp(); }
+      else localStorage.removeItem('sucden_user');   // sesión antigua sin token: pide ingresar de nuevo
+    } catch (e) { localStorage.removeItem('sucden_user'); }
   }
 });
 
@@ -527,54 +531,11 @@ function setButtonLoading(btn, labelEl, loadingText, isLoading, originalText) {
 }
 
 function setupLogin() {
-  const showRecoverBtn = document.getElementById('showRecover');
-  const showLoginFromRecoverBtn = document.getElementById('showLoginFromRecover');
-
-  const showRecoveryView = (prefillCedula) => {
-    document.getElementById('loginForm').style.display = 'none';
-    document.getElementById('registerForm').style.display = 'none';
-    document.getElementById('showRegister').style.display = 'none';
-    document.getElementById('showLogin').style.display = 'none';
-    if (showRecoverBtn) showRecoverBtn.style.display = 'none';
-
-    document.getElementById('recoverForm').style.display = 'block';
-    if (showLoginFromRecoverBtn) showLoginFromRecoverBtn.style.display = 'block';
-    document.getElementById('loginTitle').textContent = 'Recuperar clave';
-    document.getElementById('loginSub').textContent = 'Ingresa el código notificado al administrador (12h).';
-
-    if (prefillCedula) {
-      document.getElementById('recCedula').value = prefillCedula;
-      const codInput = document.getElementById('recCodigo');
-      if (codInput) codInput.focus();
-    }
-    if (window.BeanMascot) BeanMascot.setState('idle');
-  };
-
-  if (showRecoverBtn) {
-    showRecoverBtn.addEventListener('click', () => {
-      showRecoveryView(document.getElementById('loginCedula').value.trim());
-    });
-  }
-
-  if (showLoginFromRecoverBtn) {
-    showLoginFromRecoverBtn.addEventListener('click', () => {
-      document.getElementById('recoverForm').style.display = 'none';
-      showLoginFromRecoverBtn.style.display = 'none';
-      document.getElementById('registerForm').style.display = 'none';
-      document.getElementById('showLogin').style.display = 'none';
-      document.getElementById('loginForm').style.display = 'block';
-      document.getElementById('showRegister').style.display = 'block';
-      if (showRecoverBtn) showRecoverBtn.style.display = 'block';
-      document.getElementById('loginTitle').textContent = 'Bienvenido';
-      document.getElementById('loginSub').textContent = 'Sistema de Gestión de Despacho — S&D Sucden';
-      if (window.BeanMascot) BeanMascot.setState('idle');
-    });
-  }
-
   document.getElementById('showRegister').addEventListener('click', () => {
     document.getElementById('loginForm').style.display = 'none';
     document.getElementById('showRegister').style.display = 'none';
-    if (showRecoverBtn) showRecoverBtn.style.display = 'none';
+    document.getElementById('showForgot').style.display = 'none';
+    const lockNote = document.getElementById('lockNote'); if (lockNote) lockNote.classList.remove('show');
     document.getElementById('registerForm').style.display = 'block';
     document.getElementById('showLogin').style.display = 'block';
     document.getElementById('loginTitle').textContent = 'Solicitar acceso';
@@ -587,55 +548,17 @@ function setupLogin() {
     document.getElementById('showLogin').style.display = 'none';
     document.getElementById('loginForm').style.display = 'block';
     document.getElementById('showRegister').style.display = 'block';
-    if (showRecoverBtn) showRecoverBtn.style.display = 'block';
+    document.getElementById('showForgot').style.display = 'block';
     document.getElementById('loginTitle').textContent = 'Bienvenido';
     document.getElementById('loginSub').textContent = 'Sistema de Gestión de Despacho — S&D Sucden';
     if (window.BeanMascot) BeanMascot.setState('idle');
   });
 
-  let lockTimerInterval = null;
-  function startLockCountdown(seconds, cedula) {
-    if (lockTimerInterval) clearInterval(lockTimerInterval);
-    const statusEl = document.getElementById('loginStatus');
-    const btn = document.getElementById('loginBtn');
-    const label = document.getElementById('loginBtnLabel');
-    btn.disabled = true;
-
-    let remaining = seconds;
-    const tick = () => {
-      if (remaining <= 0) {
-        clearInterval(lockTimerInterval);
-        lockTimerInterval = null;
-        btn.disabled = false;
-        setButtonLoading(btn, label, '', false, 'Ingresar al sistema');
-        statusEl.className = 'status ok';
-        statusEl.innerHTML = '✅ El tiempo de bloqueo finalizó. Ya puedes intentar nuevamente.';
-        return;
-      }
-      const mins = Math.floor(remaining / 60);
-      const secs = remaining % 60;
-      const str = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
-      statusEl.className = 'status err';
-      statusEl.innerHTML =
-        '<div style="line-height:1.45;">' +
-        '⏳ <strong>Cuenta bloqueada por seguridad</strong><br>' +
-        'Espera <strong style="font-size:15px; font-family:monospace; color:#1B2A6B;">' + str + ' min</strong> para intentar de nuevo.<br>' +
-        '<button type="button" class="btn-rec-trigger" style="margin-top:8px; background:linear-gradient(135deg,#131E52,#241E63); color:#fff; border:none; border-radius:8px; padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer;">¿Tienes tu código de 12 horas? Restablecer clave ›</button>' +
-        '</div>';
-
-      const recTrig = statusEl.querySelector('.btn-rec-trigger');
-      if (recTrig) {
-        recTrig.onclick = () => {
-          showRecoveryView(cedula);
-        };
-      }
-      remaining--;
-    };
-    tick();
-    lockTimerInterval = setInterval(tick, 1000);
-  }
-
-  // ---- Mascota: se tapa los ojos mientras se escribe contraseña ----
+  // ---- Mascota: se tapa los ojos mientras se escribe cualquiera de las
+  // dos contraseñas (login o registro), y "mira" brevemente al escribir la
+  // cédula/nombre. updateCoverState queda expuesta en este cierre (closure)
+  // de setupLogin() para que el propio submit del login la pueda volver a
+  // llamar después de mostrar el estado de error (ver más abajo). ----
   const claveInput = document.getElementById('loginClave');
   const cedulaInput = document.getElementById('loginCedula');
   const updateCoverState = () => {
@@ -672,35 +595,6 @@ function setupLogin() {
     regNombreInput.addEventListener('blur', () => { if (window.BeanMascot) BeanMascot.resetHead(); });
   }
 
-  // Mascota para formulario de recuperación
-  const recClaveInput = document.getElementById('recClave');
-  const recClaveConfirmInput = document.getElementById('recClaveConfirm');
-  const recCodigoInput = document.getElementById('recCodigo');
-  const updateCoverStateRec = () => {
-    if (!window.BeanMascot) return;
-    const f1 = document.activeElement === recClaveInput;
-    const f2 = document.activeElement === recClaveConfirmInput;
-    if ((recClaveInput && recClaveInput.value.length > 0) || (recClaveConfirmInput && recClaveConfirmInput.value.length > 0) || f1 || f2) {
-      BeanMascot.setState('covering');
-    } else {
-      BeanMascot.setState('idle');
-    }
-  };
-  if (recClaveInput) {
-    recClaveInput.addEventListener('focus', updateCoverStateRec);
-    recClaveInput.addEventListener('input', updateCoverStateRec);
-    recClaveInput.addEventListener('blur', updateCoverStateRec);
-  }
-  if (recClaveConfirmInput) {
-    recClaveConfirmInput.addEventListener('focus', updateCoverStateRec);
-    recClaveConfirmInput.addEventListener('input', updateCoverStateRec);
-    recClaveConfirmInput.addEventListener('blur', updateCoverStateRec);
-  }
-  if (recCodigoInput) {
-    recCodigoInput.addEventListener('input', () => { if (window.BeanMascot) BeanMascot.turnHead(recCodigoInput.value.length); });
-    recCodigoInput.addEventListener('blur', () => { if (window.BeanMascot) BeanMascot.resetHead(); });
-  }
-
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const statusEl = document.getElementById('loginStatus');
@@ -710,97 +604,49 @@ function setupLogin() {
     const cedula = document.getElementById('loginCedula').value.trim();
     const clave = document.getElementById('loginClave').value;
 
+    if (window.sdAcceso && window.sdAcceso.isLockedFor(cedula)) { window.sdAcceso.showLock(cedula); return; }
     setButtonLoading(btn, label, 'Ingresando…', true);
+    // Nota: aquí ya NO se usa el boot splash de pantalla completa (splashShow),
+    // porque taparía a la mascota justo cuando más se luce (tapándose los
+    // ojos / pensando / celebrando). El spinner del botón sigue avisando
+    // que hay una petición en curso.
     if (window.BeanMascot) BeanMascot.setState('thinking');
+    let lockInfo = null;
     try {
-      const data = await fetchJson(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'login', cedula, clave }) });
-      if (!data.ok) {
-        if (data.locked) {
-          startLockCountdown(data.remainingSeconds || 120, cedula);
-        }
-        throw new Error(data.error || 'No se pudo iniciar sesión.');
+      // Un solo intento (attempts = 1): repetir automáticamente contaría como otra clave fallida.
+      const data = await fetchJson(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'login', cedula, clave }) }, 1);
+      if (data.locked) {
+        lockInfo = data;
+        if (window.BeanMascot) BeanMascot.setState('error');
+      } else {
+        if (!data.ok) throw new Error(data.error || 'No se pudo iniciar sesión.');
+        currentUser = data.user;
+        localStorage.setItem('sucden_user', JSON.stringify(currentUser));
+        if (window.sdAcceso) window.sdAcceso.clearLock();
+        if (window.BeanMascot) BeanMascot.setState('success');
+        // Pequeña pausa para que se alcance a ver el pulgar arriba antes de
+        // pasar a la pantalla principal de la app.
+        await new Promise(r => setTimeout(r, 750));
+        showApp();
       }
-      currentUser = data.user;
-      localStorage.setItem('sucden_user', JSON.stringify(currentUser));
-      if (window.BeanMascot) BeanMascot.setState('success');
-      await new Promise(r => setTimeout(r, 750));
-      showApp();
     } catch (err) {
       if (window.BeanMascot) BeanMascot.setState('error');
-      if (!statusEl.innerHTML.includes('btn-rec-trigger')) {
-        statusEl.className = 'status err';
-        statusEl.textContent = err.message;
-      }
+      statusEl.className = 'status err';
+      statusEl.textContent = /Failed to fetch|NetworkError|Load failed|estado \d+/i.test(err.message)
+        ? 'No hay conexión con el servidor. Revisa tu internet e inténtalo de nuevo.'
+        : err.message;
+      // Tras mostrar la carita de "esa no era", vuelve a taparse los ojos
+      // si la clave sigue escrita en el campo (o queda en reposo si no).
       setTimeout(updateCoverState, 1600);
     } finally {
-      if (!lockTimerInterval) {
-        setButtonLoading(btn, label, '', false, 'Ingresar al sistema');
-      }
+      setButtonLoading(btn, label, '', false, 'Ingresar al sistema');
+    }
+    if (lockInfo && window.sdAcceso) {
+      document.getElementById('loginClave').value = '';
+      window.sdAcceso.startLock(cedula, lockInfo.retryIn || 120, !!lockInfo.notified, lockInfo.error);
+      setTimeout(updateCoverState, 1600);
     }
   });
-
-  const recoverForm = document.getElementById('recoverForm');
-  if (recoverForm) {
-    recoverForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const statusEl = document.getElementById('recoverStatus');
-      const btn = document.getElementById('recoverBtn');
-      const label = document.getElementById('recoverBtnLabel');
-      statusEl.className = 'status'; statusEl.textContent = '';
-
-      const cedula = document.getElementById('recCedula').value.trim();
-      const code = document.getElementById('recCodigo').value.trim();
-      const newClave = document.getElementById('recClave').value;
-      const confirmClave = document.getElementById('recClaveConfirm').value;
-
-      if (newClave !== confirmClave) {
-        statusEl.className = 'status err';
-        statusEl.textContent = 'Las contraseñas no coinciden.';
-        if (window.BeanMascot) BeanMascot.setState('error');
-        return;
-      }
-      if (newClave.length < 4) {
-        statusEl.className = 'status err';
-        statusEl.textContent = 'La nueva contraseña debe tener al menos 4 caracteres.';
-        if (window.BeanMascot) BeanMascot.setState('error');
-        return;
-      }
-
-      setButtonLoading(btn, label, 'Actualizando…', true);
-      if (window.BeanMascot) BeanMascot.setState('thinking');
-
-      try {
-        const data = await fetchJson(WEB_APP_URL, {
-          method: 'POST',
-          body: JSON.stringify({ action: 'recoverPassword', cedula, code, newClave })
-        });
-        if (!data.ok) throw new Error(data.error || 'No se pudo actualizar la contraseña.');
-
-        if (window.BeanMascot) BeanMascot.setState('success');
-        statusEl.className = 'status ok';
-        statusEl.textContent = data.message || '¡Contraseña actualizada con éxito! Ya puedes iniciar sesión.';
-
-        if (lockTimerInterval) { clearInterval(lockTimerInterval); lockTimerInterval = null; }
-
-        setTimeout(() => {
-          recoverForm.reset();
-          if (showLoginFromRecoverBtn) showLoginFromRecoverBtn.click();
-          document.getElementById('loginCedula').value = cedula;
-          document.getElementById('loginClave').value = '';
-          document.getElementById('loginClave').focus();
-          const lStatus = document.getElementById('loginStatus');
-          lStatus.className = 'status ok';
-          lStatus.textContent = 'Cuenta desbloqueada. Ingresa con tu nueva clave.';
-        }, 1800);
-      } catch (err) {
-        if (window.BeanMascot) BeanMascot.setState('error');
-        statusEl.className = 'status err';
-        statusEl.textContent = err.message;
-      } finally {
-        setButtonLoading(btn, label, '', false, 'Desbloquear y cambiar clave');
-      }
-    });
-  }
 
   document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -816,6 +662,11 @@ function setupLogin() {
     if (!aceptaPolitica) {
       statusEl.className = 'status err';
       statusEl.textContent = 'Debes aceptar la política de tratamiento de datos personales.';
+      return;
+    }
+    if (clave.length < 6) {
+      statusEl.className = 'status err';
+      statusEl.textContent = 'La contraseña debe tener al menos 6 caracteres.';
       return;
     }
 
@@ -872,13 +723,10 @@ function showApp() {
   // Solo el administrador ve el Panel de control y puede descargar/exportar.
   document.body.classList.toggle('is-admin', currentUser.rol === 'admin');
 
-  if (isNonAdmin()) {
-    openGroup(GROUP);
-  } else {
-    goToHub();
-  }
+  goToHub();
   refreshHubCounts();
   startReportPolling();
+  if (window.sdAcceso) window.sdAcceso.onLogin();
 }
 
 /* Un usuario que NO es administrador no tiene panel de control (dashboard):
@@ -901,7 +749,19 @@ function prefillResponsable() {
   }
 }
 
+/* El servidor ya no reconoce la sesión (venció, cambiaron la clave o quitaron el acceso). */
+let sessionExpiredBusy = false;
+function sessionExpired() {
+  if (!currentUser || sessionExpiredBusy) return;
+  sessionExpiredBusy = true;
+  logout();
+  const st = document.getElementById('loginStatus');
+  if (st) { st.className = 'status err'; st.textContent = 'Tu sesión terminó (venció o cambiaron tus datos de acceso). Ingresa de nuevo.'; }
+  setTimeout(() => { sessionExpiredBusy = false; }, 1500);
+}
+
 function logout() {
+  if (window.sdAcceso) window.sdAcceso.onLogout();
   localStorage.removeItem('sucden_user');
   currentUser = null;
   recordsCache = { orquidea: null };
@@ -1072,7 +932,7 @@ function updateExtraFilesUI() {
 }
 
 function showSection(name) {
-  if (name === 'hub' && isNonAdmin()) name = 'group';   // nunca dejar el inicio vacío para usuarios estándar
+  if (name === 'hub' && isNonAdmin()) name = 'group';   // nunca dejar el inicio vacío
   document.getElementById('panel-hub').style.display = name === 'hub' ? 'block' : 'none';
   document.getElementById('panel-group').style.display = name === 'group' ? 'block' : 'none';
   document.getElementById('panel-admin').style.display = name === 'admin' ? 'block' : 'none';
@@ -1236,11 +1096,16 @@ function chatNotifItems() {
   try { return (window.cscChat && window.cscChat.unreadItems()) || []; } catch (e) { return []; }
 }
 
+/* Solicitudes de recuperación de clave que esperan al administrador (las aporta acceso.js). */
+function recoveryNotifItems() {
+  try { return (window.sdAcceso && window.sdAcceso.recoveryItems()) || []; } catch (e) { return []; }
+}
+
 function renderNotifBadge() {
   const badge = document.getElementById('notifBadge');
   const btn = document.getElementById('notifBtn');
   if (!badge || !btn) return;
-  const total = allPendingPhotos().length + newDispatchItems().length + chatNotifItems().reduce((a, c) => a + c.count, 0);
+  const total = allPendingPhotos().length + newDispatchItems().length + chatNotifItems().reduce((a, c) => a + c.count, 0) + recoveryNotifItems().length;
   if (total > 0) {
     badge.textContent = total > 99 ? '99+' : String(total);
     badge.style.display = 'flex';
@@ -1310,14 +1175,36 @@ function renderNotifPanel() {
   const all = allPendingPhotos();
   const chats = chatNotifItems();
   const news = newDispatchItems();
+  const recs = recoveryNotifItems();
 
-  if (!all.length && !chats.length && !news.length) {
+  if (!all.length && !chats.length && !news.length && !recs.length) {
     panel.innerHTML = '<div class="notif-empty">🎉 Sin pendientes: no hay mensajes ni despachos nuevos y todos los reportes tienen fotos.</div>';
     return;
   }
 
   panel.innerHTML = '<div class="notif-list"></div>';
   const listEl = panel.querySelector('.notif-list');
+  if (recs.length) {
+    const t = document.createElement('div');
+    t.className = 'notif-title';
+    t.textContent = 'Claves por recuperar (' + recs.length + ')';
+    listEl.appendChild(t);
+    recs.forEach(r => {
+      const row = document.createElement('div');
+      row.className = 'notif-item';
+      row.innerHTML =
+        '<div style="min-width:0;">' +
+          '<div class="notif-item-plate" style="letter-spacing:0;">🔑 ' + escapeHtml(r.nombre) + '</div>' +
+          '<div class="notif-item-meta">' + escapeHtml(r.motivo) + ' · ' + (r.estado === 'codigo' ? 'código generado' : 'espera tu código') + '</div>' +
+        '</div>' +
+        '<span class="notif-count">' + (r.estado === 'codigo' ? '✓' : 'NUEVO') + '</span>';
+      row.addEventListener('click', () => {
+        panel.classList.remove('open');
+        const ab = document.getElementById('adminBtn'); if (ab) ab.click();
+      });
+      listEl.appendChild(row);
+    });
+  }
   if (chats.length) {
     const t = document.createElement('div');
     t.className = 'notif-title';
@@ -2358,22 +2245,9 @@ function paintAdmin(c) {
 }
 
 async function fetchAdminData() {
-  const ced = encodeURIComponent(currentUser.cedula);
-  try {
-    const d = await fetchJson(WEB_APP_URL + '?action=adminUsers&adminCedula=' + ced);
-    if (d.ok) return { t: Date.now(), pending: d.pending, users: d.users };
-    if (String(d.error || '').indexOf('Acción no reconocida') === -1) throw new Error(d.error || 'Error desconocido');
-  } catch (e) {
-    if (String(e.message || '').indexOf('Acción no reconocida') === -1) throw e;
-  }
-  // Backend antiguo (sin "adminUsers"): se piden las dos listas en paralelo.
-  const [p, u] = await Promise.all([
-    fetchJson(WEB_APP_URL + '?action=listPendingUsers&adminCedula=' + ced),
-    fetchJson(WEB_APP_URL + '?action=listUsers&adminCedula=' + ced)
-  ]);
-  if (!p.ok) throw new Error(p.error || 'Error desconocido');
-  if (!u.ok) throw new Error(u.error || 'Error desconocido');
-  return { t: Date.now(), pending: p.users, users: u.users };
+  const d = await fetchJson(WEB_APP_URL + '?action=adminUsers');
+  if (!d.ok) throw new Error(d.error || 'Error desconocido');
+  return { t: Date.now(), pending: d.pending, users: d.users };
 }
 
 async function loadAdmin(force) {
@@ -2418,7 +2292,7 @@ function renderPending(users) {
 async function resolveUser(cedula, action, row) {
   row.style.opacity = '0.5';
   try {
-    const data = await fetchJson(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action, cedula, adminCedula: currentUser.cedula }) });
+    const data = await fetchJson(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action, cedula }) });
     if (!data.ok) throw new Error(data.error || 'Error desconocido');
     adminCacheClear();
     loadAdmin(true);
