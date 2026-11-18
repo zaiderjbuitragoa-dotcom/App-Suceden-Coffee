@@ -202,7 +202,13 @@
 
   function goHome() {
     if (vis($('panel-admin'))) click('backFromAdmin');
-    else if (vis($('panel-group'))) click('backToHub');
+    else if (vis($('panel-group'))) {
+      if (window.currentUser && window.currentUser.rol !== 'admin') {
+        openTab('form');
+      } else {
+        click('backToHub');
+      }
+    }
   }
   function openTab(tab) {
     if (vis($('panel-admin'))) click('backFromAdmin');
@@ -214,7 +220,15 @@
     if (t) t.click();
   }
 
-  navHome.addEventListener('click', function () { goHome(); closeMenu(); sync(); });
+  navHome.addEventListener('click', function () {
+    if (window.currentUser && window.currentUser.rol !== 'admin') {
+      openTab('form');
+    } else {
+      goHome();
+    }
+    closeMenu();
+    sync();
+  });
   navDatos.addEventListener('click', function () { if (!vis($('panel-group'))) openTab('form'); closeMenu(); sync(); });
   navForm.addEventListener('click', function () { openTab('form'); closeMenu(); sync(); });
   navGal.addEventListener('click', function () { openTab('gallery'); closeMenu(); sync(); });
@@ -229,6 +243,8 @@
   }
   function sync() {
     var admin = vis($('panel-admin')), group = vis($('panel-group')), hub = vis($('panel-hub'));
+    var isAdmin = window.currentUser && window.currentUser.rol === 'admin';
+    if (navHome) navHome.style.display = isAdmin ? '' : 'none';
     var at = app.querySelector('.tab.active');
     var tab = at ? at.getAttribute('data-tab') : '';
     setActive(navHome, hub && !admin && !group);

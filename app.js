@@ -872,17 +872,21 @@ function showApp() {
   // Solo el administrador ve el Panel de control y puede descargar/exportar.
   document.body.classList.toggle('is-admin', currentUser.rol === 'admin');
 
-  goToHub();
+  if (isNonAdmin()) {
+    openGroup(GROUP);
+  } else {
+    goToHub();
+  }
   refreshHubCounts();
   startReportPolling();
 }
 
-/* En el celular, un usuario que NO es administrador no tiene panel de control: su
- * "Inicio" quedaba en blanco. Para ellos la app abre directo en Módulos > Datos
- * (Nuevo reporte), que es lo primero que necesitan. */
-function isPhoneNonAdmin() {
+/* Un usuario que NO es administrador no tiene panel de control (dashboard):
+ * su "Inicio" quedaba en blanco. Para ellos la app abre directo en Módulos > Datos
+ * (Nuevo reporte), tanto en computador como en celular. */
+function isNonAdmin() {
   try {
-    return !!currentUser && currentUser.rol !== 'admin' && window.matchMedia('(max-width:899px)').matches;
+    return !!currentUser && currentUser.rol !== 'admin';
   } catch (e) { return false; }
 }
 
@@ -1068,16 +1072,16 @@ function updateExtraFilesUI() {
 }
 
 function showSection(name) {
-  if (name === 'hub' && isPhoneNonAdmin()) name = 'group';   // nunca dejar el inicio vacío
+  if (name === 'hub' && isNonAdmin()) name = 'group';   // nunca dejar el inicio vacío para usuarios estándar
   document.getElementById('panel-hub').style.display = name === 'hub' ? 'block' : 'none';
   document.getElementById('panel-group').style.display = name === 'group' ? 'block' : 'none';
   document.getElementById('panel-admin').style.display = name === 'admin' ? 'block' : 'none';
   const floatBtn = document.getElementById('floatingBack');
-  if (floatBtn) floatBtn.classList.toggle('show', name !== 'hub' && !isPhoneNonAdmin());
+  if (floatBtn) floatBtn.classList.toggle('show', name !== 'hub' && !isNonAdmin());
 }
 
 function goToHub() {
-  if (isPhoneNonAdmin()) {            // celular sin panel de control: abre Datos > Nuevo reporte
+  if (isNonAdmin()) {            // usuario estándar: abre directo Datos > Nuevo reporte
     if (currentGroup !== GROUP || document.getElementById('panel-group').style.display === 'none') openGroup(GROUP);
     else showSection('group');
     refreshHubCounts();
