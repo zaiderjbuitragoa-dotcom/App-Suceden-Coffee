@@ -2,19 +2,15 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Sistema de Gestión de Despacho — S&amp;D Sucden</title>
-<!-- Ícono de la pestaña del navegador (favicon) -->
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<!-- Ícono usado por iOS al "Agregar a pantalla de inicio" -->
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="S&amp;D Despachos">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<!-- Manifest PWA: hace que Android/Chrome usen el logo de S&D (no un
-     ícono genérico) al instalar la app o crear un acceso directo -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#131E52">
 <style>
@@ -98,9 +94,7 @@
     padding: 24px 16px;
     flex-direction:column;
   }
-  .brand-banner{
-    display:flex; justify-content:center; margin-bottom:20px;
-  }
+  .brand-banner{ display:flex; justify-content:center; margin-bottom:20px; }
   .brand-banner-inner{
     background:#fff; border-radius:16px; padding:14px 26px;
     box-shadow: 0 10px 30px rgba(27,42,107,0.14), 0 2px 8px rgba(27,42,107,0.06);
@@ -125,9 +119,7 @@
     padding: 12px;
   }
   .logo-badge img{ width:100%; height:auto; }
-  .login-card h1{
-    font-size: 21px; font-weight:700; margin: 0 0 4px; color: var(--navy-deep);
-  }
+  .login-card h1{ font-size: 21px; font-weight:700; margin: 0 0 4px; color: var(--navy-deep); }
   .login-card p.sub{ font-size: 13.5px; color: var(--ink-soft); margin: 0 0 18px; }
 
   .clock-box{
@@ -176,21 +168,11 @@
   .login-footer{ font-size:11px; color:#98A2B3; margin-top:22px; }
 
   /* ============ MASCOTA: GRANITO DE CAFÉ ============
-   * Personaje interactivo en SVG. Todo el control de pose se hace con
-   * `transform` sobre los grupos .arm-left / .arm-right, que usan
-   * `transform-box: view-box` — así los px de rotate()/translate() se
-   * miden directamente en las coordenadas del viewBox del SVG (0 0 220 260)
-   * sin importar el tamaño final en pantalla. Los estados (idle / covering /
-   * thinking / success / error) se controlan con una sola clase en
-   * #beanWidget desde app.js (ver BeanMascot en el script de más abajo). */
+   * El <svg> se dibuja a su tamaño real (220x260) y todo el widget se
+   * achica con scale(), para que los puntos de giro de los brazos caigan
+   * donde corresponde. Los estados (idle / covering / thinking / success /
+   * error) se controlan con una clase en #beanWidget desde app.js. */
   .bean-stage{ display:flex; justify-content:center; margin-bottom:2px; position:relative; height:150px; }
-  /* El <svg> se dibuja SIEMPRE a su tamaño real (220x260, igual a su
-   * viewBox) y todo el widget se achica después con `scale()`. Esto es
-   * clave: así cada punto de giro de los brazos (transform-origin, en px)
-   * cae exactamente donde corresponde dentro del dibujo. Si el <svg> se
-   * mostrara ya "encogido" por CSS (width/height distintos al viewBox),
-   * el navegador calcula esos puntos de giro mal y los brazos terminan
-   * rotando fuera del área visible (por eso antes no se veían). */
   .bean-widget{ position:absolute; top:0; left:50%; width:220px; height:260px; transform: translateX(-50%) scale(0.62); transform-origin: top center; }
   .bean-widget svg{ width:220px; height:260px; overflow:visible; display:block; }
 
@@ -210,12 +192,6 @@
   .arm{ transform-box: view-box; transform-origin: 176px 165px; transition: transform .42s cubic-bezier(.34,1.56,.64,1), opacity .25s ease; }
   .arm-left{ transform-origin: 44px 165px; }
   .arm-right{ transform-origin: 176px 165px; }
-  /* --- Gira la cabeza/cuerpo suavemente según lo que se va escribiendo,
-   * igual que el ejemplo de referencia (el "perrito" que gira la cara al
-   * escribir el usuario) — pero aquí gira todo el granito. app.js actualiza
-   * la variable --rotate-head en cada tecla mientras escribes la cédula o
-   * el nombre. Va en su PROPIO grupo (bean-turn), separado del grupo que
-   * flota (bean-body-wrap), para que ambos movimientos no se pisen. --- */
   .bean-turn{ transform-box: view-box; transform-origin: 110px 250px; --rotate-head: 0deg; transform: rotate(var(--rotate-head)); transition: transform .22s ease-out; }
   .eyebrow{ transform-box: view-box; transition: transform .3s ease; }
   .eyebrow-left{ transform-origin: 66px 76px; }
@@ -226,9 +202,6 @@
   .thumb{ transform-box: view-box; transform-origin: 204px 204px; transform: scale(0); transition: transform .3s ease .1s; }
   .tongue{ opacity:0; transition: opacity .2s ease; }
   .mouth{ transition: d .25s ease; }
-  /* Brazos dedicados a la pose "tapando los ojos" — ver comentario en el
-   * SVG. Ocultos por defecto; .state-covering los muestra y esconde los
-   * brazos normales para que no se vean los dos pares a la vez. */
   .cover-hand{ opacity:0; transition: opacity .25s ease; pointer-events:none; }
 
   @keyframes beanBlink{ 0%,86%,100%{ transform: scaleY(.03); } 90%{ transform: scaleY(1); } 94%{ transform: scaleY(.03); } }
@@ -237,47 +210,29 @@
   @keyframes beanCelebrate{ 0%{ transform: translateY(0) rotate(0); } 25%{ transform: translateY(-18px) rotate(-8deg); } 50%{ transform: translateY(0) rotate(5deg); } 75%{ transform: translateY(-9px) rotate(-3deg); } 100%{ transform: translateY(0) rotate(0); } }
   @keyframes beanShake{ 0%,100%{ transform: translateX(0) rotate(0); } 20%{ transform: translateX(-9px) rotate(-4deg); } 40%{ transform: translateX(8px) rotate(4deg); } 60%{ transform: translateX(-6px) rotate(-3deg); } 80%{ transform: translateX(6px) rotate(3deg); } }
   @keyframes beanGlance{ 0%,100%{ transform: translateX(0); } 50%{ transform: translateX(4px); } }
-  /* Vaivén continuo de los brazos en reposo, para que el granito se sienta
-   * "vivo" incluso sin que el usuario esté interactuando. Los ángulos van
-   * y vuelven alrededor de la pose de reposo (-12deg / 12deg). */
   @keyframes beanSwayLeft{ 0%,100%{ transform: rotate(-6deg); } 50%{ transform: rotate(-20deg); } }
   @keyframes beanSwayRight{ 0%,100%{ transform: rotate(20deg); } 50%{ transform: rotate(6deg); } }
 
   .bean-body-wrap{ animation: beanFloat 3.6s ease-in-out infinite; }
 
-  /* --- reposo: los brazos se mecen suavemente sin parar --- */
   .state-idle .arm-left{ animation: beanSwayLeft 2.8s ease-in-out infinite; }
   .state-idle .arm-right{ animation: beanSwayRight 2.8s ease-in-out infinite .25s; }
 
-  /* --- escribiendo la cédula: mirada breve de lado a lado --- */
   .glance .pupil, .glance .glint{ animation: beanGlance .26s ease; }
 
-  /* --- escribiendo la clave: se tapa los ojos con las dos manos ---
-   * Las manos deben terminar centradas justo sobre cada ojo (centro del
-   * ojo izquierdo: 75,112 · derecho: 145,112 en las coords del viewBox).
-   * translate()+rotate() aquí resuelven exactamente esa posición final
-   * (no son valores "a ojo"): con el ángulo de giro elegido, el translate
-   * se calculó para que el centro de la mano caiga sobre el centro del
-   * ojo sin importar el punto de partida del brazo. */
   .state-covering .bean-body-wrap{ animation: beanFloat 3.6s ease-in-out infinite; }
-  /* La mano es casi blanca (igual que el fondo del ojo), así que si solo
-   * la movemos encima del ojo se "camufla" y no se nota el gesto. Por eso,
-   * mientras tapa el ojo, además de agrandarla un poco (r:25) le damos un
-   * tono cálido con buen contraste y un borde más marcado. */
   .state-covering .arm-left, .state-covering .arm-right{ opacity:0; transition: opacity .2s ease; }
   .state-covering .cover-hand{ opacity:1; transition: opacity .3s ease .08s; }
   .state-covering .eyelid{ animation: none; transform: scaleY(1); }
   .state-covering .eyebrow-left{ transform: rotate(-6deg) translateY(-2px); }
   .state-covering .eyebrow-right{ transform: rotate(6deg) translateY(-2px); }
 
-  /* --- verificando: se queda pensativo, un brazo se rasca la cabeza --- */
   .state-thinking .bean-body-wrap{ animation: beanThink 1s ease-in-out infinite; }
   .state-thinking .arm-left{ transform: rotate(-50deg); }
   .state-thinking .arm-right{ transform: rotate(10deg); }
   .state-thinking .eyebrow-left{ transform: rotate(-8deg); }
   .state-thinking .eyebrow-right{ transform: rotate(4deg); }
 
-  /* --- clave correcta: pulgar arriba y sonrisononón --- */
   .state-success .bean-body-wrap{ animation: beanCelebrate .8s ease; }
   .state-success .arm-left{ transform: translate(-4px,10px) rotate(-6deg); }
   .state-success .arm-right{ transform: translate(0px,-133px) rotate(-38deg); }
@@ -287,7 +242,6 @@
   .state-success .tongue{ opacity:1; }
   .state-success .pupil{ transform: scale(1.08); }
 
-  /* --- clave incorrecta: se le caen los brazos y sacude la cabeza --- */
   .state-error .bean-body-wrap{ animation: beanShake .5s ease; }
   .state-error .arm-left{ transform: translate(-6px,16px) rotate(-14deg); }
   .state-error .arm-right{ transform: translate(6px,16px) rotate(14deg); }
@@ -322,6 +276,18 @@
   .app-header-left .logo-badge{ width:52px; height:52px; border-radius:13px; margin:0; box-shadow: 0 4px 12px rgba(0,0,0,0.18); background: #fff; padding:8px; }
 
   .app-header-titles h1{ margin:0; font-size:18.5px; font-weight:700; }
+
+  /* Logo grande sobre fondo blanco; el texto pasa a segundo plano */
+  .app-header-left{ flex-direction:column; align-items:flex-start; gap:8px; }
+  .logo-wide{
+    background:#fff; border-radius:14px; padding:7px 14px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.22); line-height:0;
+  }
+  .logo-wide img{ display:block; height:46px; width:auto; max-width:100%; }
+  .app-header-titles h1{
+    font-size:12px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    color:#C7D1F0; margin-left:4px;
+  }
   .header-actions{ display:flex; align-items:center; gap:8px; }
   .icon-btn{
     background: rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); color:#fff;
@@ -351,12 +317,7 @@
     border-radius:10px; background: var(--err); color:#fff; font-size:11px; font-weight:800;
     align-items:center; justify-content:center; border:2px solid var(--navy-deep); line-height:1;
   }
-  /* position:fixed a propósito: la posición real (top/left) se calcula en
-     JS (positionNotifPanel) a partir de dónde está la campana en pantalla,
-     y se ajusta para que el panel NUNCA se salga por el borde izquierdo o
-     derecho de la pantalla (antes, con position:absolute + right:0 anclado
-     al botón, en móvil el panel quedaba cortado y la placa de cada
-     reporte no se alcanzaba a ver). */
+  /* position:fixed: la posición (top/left) se calcula en JS (positionNotifPanel) */
   .notif-panel{
     display:none; position:fixed; width:300px; max-width:calc(100vw - 24px); max-height:360px;
     background:#fff; border-radius:14px; box-shadow: 0 14px 34px rgba(11,20,60,0.28);
@@ -364,18 +325,16 @@
   }
   .notif-panel.open{ display:flex; flex-direction:column; }
   .notif-title{ padding:13px 16px 10px; font-size:13.5px; font-weight:800; color:var(--navy-deep); border-bottom:1px solid var(--line); flex-shrink:0; }
-  .notif-list{ overflow-y:auto; max-height:300px; }
+  .notif-list{ overflow-y:auto; max-height:320px; }
   .notif-item{ padding:11px 16px; border-bottom:1px solid var(--line); cursor:pointer; transition: background .12s ease; display:flex; align-items:center; justify-content:space-between; gap:8px; }
   .notif-item:last-child{ border-bottom:none; }
   .notif-item:hover{ background: var(--ok-bg); }
   .notif-item-plate{ font-weight:800; font-size:14px; color:var(--navy-deep); letter-spacing:0.03em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .notif-item-meta{ font-size:12px; color:var(--ink-soft); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .notif-item-icon{ flex-shrink:0; font-size:15px; }
+  .notif-count{ flex-shrink:0; min-width:20px; height:20px; padding:0 6px; border-radius:10px; background:var(--err); color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; box-sizing:border-box; }
   .notif-empty{ padding:22px 16px; text-align:center; font-size:13px; color:var(--ink-soft); }
 
-  /* ---- Insignia "sin fotos" dentro de la lista de registros guardados ----
-     Así el usuario ve de un vistazo, sin abrir cada reporte, a cuáles les
-     falta imagen (mismo dato que usa la campana). */
   .no-photo-badge{
     display:inline-flex; align-items:center; gap:4px; margin-left:8px; padding:2px 8px;
     background: var(--warn-bg); color: var(--warn-ink); border:1px solid #E9C98C;
@@ -386,18 +345,12 @@
   .greeting h2{ font-size: 19px; margin:0 0 3px; }
   .greeting .clock-line{ font-size:12.5px; color:#C7D1F0; }
 
-  /* ---- Encabezado en celular: el logo, el título y los botones ya NO
-   * caben en una sola fila junto con la campana/Usuarios/Salir (se
-   * encimaban y "Salir" quedaba cortado fuera de la pantalla). En
-   * pantallas angostas se acomoda todo en su propia fila, de arriba a
-   * abajo: 1) el logo solo, 2) el nombre del sistema debajo, 3) los
-   * botones (campana, Usuarios, Salir) en su propia fila abajo. */
   @media (max-width: 480px){
     .app-header{ padding: 18px 16px 40px; }
     .app-header-inner{ flex-direction: column; align-items: stretch; gap:14px; }
     .app-header-left{ flex-direction: column; align-items: flex-start; gap:10px; }
-    .app-header-left .logo-badge{ width:44px; height:44px; border-radius:12px; }
-    .app-header-titles h1{ font-size:16.5px; line-height:1.3; }
+    .logo-wide img{ height:42px; }
+    .app-header-titles h1{ font-size:11.5px; line-height:1.3; }
     .header-actions{ width:100%; justify-content:flex-end; }
     .greeting h2{ font-size:17px; }
   }
@@ -442,7 +395,7 @@
   .saving-banner .label{ font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); font-weight:700; }
   .saving-banner .value{ font-size:15px; font-weight:700; color: var(--navy-deep); }
 
-  /* ---- Detalle completo del reporte (todos los campos de la hoja) ---- */
+  /* ---- Detalle completo del reporte ---- */
   .detail-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap:12px 16px; margin-bottom:14px; }
   .detail-item .detail-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color: var(--ink-soft); font-weight:700; margin-bottom:3px; }
   .detail-item .detail-value{ font-size:14px; color: var(--ink); font-weight:600; word-break:break-word; }
@@ -460,9 +413,6 @@
   section.panel{ display:none; }
   section.panel.active{ display:block; }
 
-  /* ---- Fila de pestañas + botón exportar: ahora las pestañas también son
-     "pills" con borde, igual de estilo que el botón Exportar, para que
-     toda la fila se vea uniforme y más pulida. ---- */
   .tabs-row{
     display:flex; align-items:center; justify-content:space-between; gap:10px;
     margin-bottom: 16px; flex-wrap: wrap;
@@ -472,13 +422,11 @@
     display:inline-flex; align-items:center;
     padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line);
     background:#fff; color: var(--navy); font-size:13px; font-weight:700;
-    border-bottom: 1px solid var(--line); /* pisa el estilo antiguo de subrayado */
+    border-bottom: 1px solid var(--line);
     transition: background .15s ease, border-color .15s ease, color .15s ease;
   }
   .tabs-row .tab:hover{ background:#F0F4FA; border-color: var(--navy); }
-  .tabs-row .tab.active{
-    background: var(--navy); color:#fff; border-color: var(--navy);
-  }
+  .tabs-row .tab.active{ background: var(--navy); color:#fff; border-color: var(--navy); }
   .export-btn{
     display:inline-flex; align-items:center; gap:6px;
     background:#fff; border:1px solid var(--line); color: var(--navy);
@@ -490,6 +438,11 @@
   .export-btn:active{ transform: scale(0.97); }
   .export-btn svg{ width:14px; height:14px; flex-shrink:0; }
   .export-btn.is-hidden{ display:none; }
+  /* Colaboradores: sin descargas ni exportaciones (solo el administrador) */
+  body:not(.is-admin) .export-btn,
+  body:not(.is-admin) .img-cell a.dl,
+  body:not(.is-admin) #lightboxDl,
+  body:not(.is-admin) #cscDash{ display:none !important; }
 
   .card{ background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; box-shadow: 0 6px 18px rgba(27,42,107,0.05); }
   .field label{ display:block; font-size: 12.5px; color: var(--ink-soft); margin-bottom: 5px; font-weight: 600; }
@@ -533,7 +486,6 @@
   .img-cell a.dl{ display:block; text-align:center; padding: 7px 4px; font-size: 12.5px; font-weight:700; color: var(--navy); text-decoration:none; border-top: 1px solid var(--line); }
   .img-cell.removing{ opacity:0; transform: scale(0.85); pointer-events:none; }
 
-  /* ---- Botón de eliminar foto individual ---- */
   .photo-del-btn{
     position:absolute; top:6px; right:6px; z-index:5;
     width:28px; height:28px; border-radius:50%;
@@ -555,9 +507,42 @@
   .photo-del-btn.is-loading .mini-spinner{ display:block; }
   .empty, .loading{ text-align:center; color: var(--ink-soft); font-size: 14px; padding: 30px 10px; display:flex; flex-direction:column; align-items:center; gap:10px; }
   .search{ width:100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; margin-bottom: 12px; font-family: inherit; }
+  .search-row{ display:flex; gap:8px; align-items:flex-start; }
+  .search-row .search{ flex:1; min-width:0; }
+  .refresh-btn{
+    flex-shrink:0; width:42px; height:42px; border-radius:8px; border:1px solid var(--line);
+    background:#fff; color: var(--navy); cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .refresh-btn:hover{ background:#F0F4FA; border-color: var(--navy); }
+  .refresh-btn svg{ width:18px; height:18px; }
+  .refresh-btn:disabled{ opacity:.6; cursor:default; }
+  .refresh-btn.spinning svg{ animation: cscspin .8s linear infinite; }
+  @keyframes cscspin{ to{ transform: rotate(360deg); } }
+  .cache-info{ font-size:11.5px; color: var(--ink-soft); margin:-4px 2px 10px; min-height:14px; }
+
+  /* Aviso de subida de fotos en segundo plano */
+  .upload-toast{
+    position:fixed; left:50%; bottom:18px; transform: translate(-50%, 20px); z-index: 9000;
+    width:min(380px, calc(100vw - 24px)); background:#fff; border:1px solid var(--line);
+    border-left:4px solid var(--navy); border-radius:12px; padding:10px 14px;
+    box-shadow: 0 10px 28px rgba(27,42,107,.22); opacity:0; pointer-events:none;
+    transition: opacity .2s ease, transform .2s ease; font-size:13px; color: var(--ink);
+  }
+  .upload-toast.show{ opacity:1; transform: translate(-50%, 0); pointer-events:auto; }
+  .upload-toast.ok{ border-left-color: var(--ok); }
+  .upload-toast.err{ border-left-color: var(--err); background: var(--err-bg); }
+  .upload-toast .ut-text{ font-weight:600; display:flex; align-items:center; gap:8px; }
+  .upload-toast .ut-bar{ height:5px; background: var(--line); border-radius:99px; margin-top:8px; overflow:hidden; }
+  .upload-toast .ut-bar-fill{ height:100%; background: var(--navy); transition: width .25s ease; }
+  .upload-toast .ut-actions{ display:flex; gap:8px; margin-top:8px; }
+  .upload-toast .ut-actions button{
+    border:none; border-radius:8px; padding:7px 14px; font-size:12.5px; font-weight:700; cursor:pointer;
+    background: var(--navy); color:#fff; width:auto;
+  }
+  .upload-toast .ut-actions button.ghost{ background:#fff; color: var(--navy); border:1px solid var(--line); }
   .config-warning{ background:#FDF3E7; border: 1px solid #E9C98C; color: #6E4A1F; font-size: 13px; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; }
 
-  /* ---- Botón flotante "volver" (siempre alcanzable, sin importar el scroll) ---- */
   .floating-back{
     position:fixed; left:16px; bottom:16px; z-index:500;
     width:50px; height:50px; border-radius:50%;
@@ -570,7 +555,6 @@
   .floating-back.show{ display:flex; }
   .floating-back:active{ filter:brightness(0.92); }
 
-  /* ---- Lightbox (ampliar imagen) ---- */
   #imgLightbox{
     position:fixed; inset:0; z-index:2000; background: rgba(10,14,36,0.92);
     display:none; align-items:center; justify-content:center; padding: 30px 16px;
@@ -616,21 +600,16 @@
     .app-header{ padding: 26px 32px 56px; }
     main.container{ padding: 0 32px 48px; }
   }
-  /* ============ ADAPTAR A PANTALLAS DE COMPUTADOR ============
-   * Todo lo anterior está pensado para celular (donde ya se ve bien). En
-   * pantallas grandes (computador/tablet horizontal) se agranda el ancho
-   * máximo del contenido, el logo, los títulos y las tarjetas, para que
-   * no se vea "perdido" en medio de tanto espacio en blanco. No se toca
-   * NADA de lo anterior: estas reglas solo aplican desde 900px de ancho
-   * en adelante, así que en celular todo sigue exactamente igual. */
+  /* ============ PANTALLAS DE COMPUTADOR (desde 900px) ============ */
   @media (min-width: 900px){
     .app-header-inner{ max-width: 1180px; }
     .greeting{ max-width: 1180px; }
     main.container{ max-width: 1180px; }
 
     .app-header{ padding: 30px 32px 56px; }
-    .app-header-left .logo-badge{ width:60px; height:60px; border-radius:15px; padding:9px; }
-    .app-header-titles h1{ font-size:24px; }
+    .logo-wide{ padding:9px 18px; border-radius:16px; }
+    .logo-wide img{ height:64px; }
+    .app-header-titles h1{ font-size:14px; }
     .greeting h2{ font-size:25px; }
     .greeting .clock-line{ font-size:14px; }
     .icon-btn{ font-size:14px; padding:10px 14px; }
@@ -657,6 +636,44 @@
     .detail-item .detail-value{ font-size:15px; }
     .thumb-item{ width:78px; height:78px; }
   }
+
+/* ===== Ajuste SOLO para celular (PC y tablet quedan como el original) ===== */
+html{ background: var(--bg-bottom); height:auto; }
+body{ height:auto; min-height:100vh; min-height:100dvh; background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom)) fixed; overflow-x:hidden; -webkit-text-size-adjust:100%; }
+@media (max-width: 600px){
+  #loginScreen{
+    min-height:100vh; min-height:100dvh; justify-content:flex-start;
+    padding: calc(12px + env(safe-area-inset-top)) 14px calc(12px + env(safe-area-inset-bottom));
+  }
+  #loginScreen > :first-child{ margin-top:auto; }
+  #loginScreen > :last-child{ margin-bottom:auto; }
+  .brand-banner{ margin-bottom:10px; }
+  .brand-banner-inner{ padding:8px 18px; border-radius:14px; }
+  .brand-banner-inner img{ height:30px; }
+  .login-card{ padding:16px 20px 14px; border-radius:20px; }
+  .bean-stage{ height:122px; margin:4px 0 6px; }
+  .bean-widget{ transform: translateX(-50%) scale(.46); }
+  .login-card h1{ font-size:20px; margin:0 0 2px; position:relative; z-index:1; }
+  .login-card p.sub{ font-size:13px; margin:0 0 10px; }
+  .clock-box{ padding:8px 12px; margin-bottom:12px; }
+  .clock-box .date{ font-size:10.5px; }
+  .clock-box .time{ font-size:18px; }
+  .field{ margin-bottom:10px; }
+  .field label{ margin-bottom:4px; }
+  .field input{ padding:10px 12px; font-size:16px; }
+  .checkbox-field{ margin-bottom:12px; }
+  button.primary{ padding:12px; }
+  button.link{ padding:8px 0 0; }
+  .login-footer{ margin-top:10px; }
+  .app-header{ padding-top: calc(18px + env(safe-area-inset-top)); }
+  .floating-back{ bottom: calc(16px + env(safe-area-inset-bottom)); }
+}
+@media (max-width: 600px) and (max-height: 640px){
+  .bean-stage{ height:96px; }
+  .bean-widget{ transform: translateX(-50%) scale(.36); }
+  .brand-banner-inner img{ height:26px; }
+}
+
 </style>
 </head>
 <body>
@@ -720,25 +737,20 @@
             <path class="mouth" id="beanMouth" d="M82,168 Q110,186 138,168" stroke="#3d2412" stroke-width="6" fill="none" stroke-linecap="round"></path>
             <ellipse class="tongue" cx="110" cy="181" rx="13" ry="8" fill="#c1666b"></ellipse>
 
-            <!-- brazo izquierdo (delante de la cara, para poder tapar el ojo) -->
+            <!-- brazo izquierdo -->
             <g class="arm arm-left">
               <line x1="44" y1="165" x2="16" y2="204" stroke="#6b4426" stroke-width="24" stroke-linecap="round"></line>
               <circle class="hand" cx="16" cy="204" r="20" fill="#f5f1ea" stroke="#d8cfc0" stroke-width="2"></circle>
             </g>
 
-            <!-- brazo derecho (delante, con pulgar para el "¡genial!") -->
+            <!-- brazo derecho (con pulgar) -->
             <g class="arm arm-right">
               <line x1="176" y1="165" x2="204" y2="204" stroke="#6b4426" stroke-width="24" stroke-linecap="round"></line>
               <circle class="hand" cx="204" cy="204" r="20" fill="#f5f1ea" stroke="#d8cfc0" stroke-width="2"></circle>
               <ellipse class="thumb" cx="192" cy="184" rx="7" ry="12" fill="#f5f1ea" stroke="#d8cfc0" stroke-width="2" transform="rotate(-25 192 184)"></ellipse>
             </g>
 
-            <!-- brazos "tapando los ojos": son un dibujo aparte (no el mismo
-                 brazo de reposo movido con transform), para que el codo se
-                 vea naciendo del costado del cuerpo y llegue en una curva
-                 natural hasta el ojo, en vez de "teletransportarse" ahí.
-                 Están ocultos (opacity:0) y solo se muestran en
-                 .state-covering (ver CSS). -->
+            <!-- brazos "tapando los ojos" (ocultos; se muestran en .state-covering) -->
             <g class="cover-hand cover-hand-left">
               <path d="M50,150 Q16,102 75,112" stroke="#3d2412" stroke-width="20" fill="none" stroke-linecap="round"></path>
               <circle cx="75" cy="112" r="25" fill="#e3b880" stroke="#3d2412" stroke-width="3"></circle>
@@ -763,7 +775,7 @@
     <form id="loginForm">
       <div class="field">
         <label for="loginCedula">Usuario o cédula</label>
-        <input type="text" id="loginCedula" inputmode="numeric" placeholder="Número de cédula" required>
+        <input type="text" id="loginCedula" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" placeholder="Usuario o número de cédula" required>
       </div>
       <div class="field">
         <label for="loginClave">Contraseña</label>
@@ -773,6 +785,7 @@
       <div class="status" id="loginStatus"></div>
     </form>
     <button type="button" class="link" id="showRegister">¿No tienes cuenta? Regístrate aquí</button>
+    <button type="button" class="link" id="showRecover" style="margin-top:2px; font-size:12.5px; color:var(--indigo);">¿Olvidaste tu contraseña o estás bloqueado?</button>
 
     <form id="registerForm" style="display:none;">
       <div class="field">
@@ -796,6 +809,31 @@
     </form>
     <button type="button" class="link" id="showLogin" style="display:none;">Ya tengo cuenta, iniciar sesión</button>
 
+    <form id="recoverForm" style="display:none; text-align:left;">
+      <div style="background:#EEF4FF; border:1px solid #C7D9FF; border-radius:12px; padding:11px 13px; margin-bottom:14px; font-size:12px; color:#1B2A6B; line-height:1.45;">
+        🔒 <strong>Recuperación de cuenta:</strong> Si tu cuenta fue bloqueada o no recuerdas tu clave, ingresa el código de 6 dígitos emitido por el administrador (vigencia 12 horas).
+      </div>
+      <div class="field">
+        <label for="recCedula">Cédula o usuario</label>
+        <input type="text" id="recCedula" inputmode="text" placeholder="Número de cédula" required>
+      </div>
+      <div class="field">
+        <label for="recCodigo">Código de recuperación (6 dígitos)</label>
+        <input type="text" id="recCodigo" inputmode="numeric" maxlength="6" placeholder="000000" style="font-size:20px; letter-spacing:5px; font-weight:800; text-align:center; font-family:monospace;" required>
+      </div>
+      <div class="field">
+        <label for="recClave">Nueva contraseña</label>
+        <input type="password" id="recClave" placeholder="Mínimo 4 caracteres" required>
+      </div>
+      <div class="field">
+        <label for="recClaveConfirm">Confirmar nueva contraseña</label>
+        <input type="password" id="recClaveConfirm" placeholder="Repite tu nueva contraseña" required>
+      </div>
+      <button type="submit" class="primary" id="recoverBtn"><span class="btn-label" id="recoverBtnLabel">Desbloquear y cambiar clave</span></button>
+      <div class="status" id="recoverStatus"></div>
+    </form>
+    <button type="button" class="link" id="showLoginFromRecover" style="display:none;">Volver al inicio de sesión</button>
+
     <div class="login-footer">Diseñado y creado por Zaider J. Buitrago A.</div>
   </div>
 </div>
@@ -812,10 +850,10 @@
 
 <!-- ============ APP ============ -->
 <div id="appScreen">
-  <header class="app-header">
+  <header class="app-header" id="appHeader">
     <div class="app-header-inner">
       <div class="app-header-left">
-        <div class="logo-badge"><img id="headerBadgeImg" src="" alt="S&amp;D Sucden"></div>
+        <div class="logo-wide"><img id="headerBadgeImg" src="" alt="S&amp;D Sucden Coffee"></div>
         <div class="app-header-titles">
           <h1>Sistema de Gestión de Despacho</h1>
         </div>
@@ -877,7 +915,7 @@
           <div class="tab active" data-tab="form">Nuevo reporte</div>
           <div class="tab" data-tab="gallery">Registros guardados</div>
         </div>
-        <button type="button" class="export-btn is-hidden" id="exportCsvBtn" title="Exportar los reportes filtrados a Excel/CSV">
+        <button type="button" class="export-btn is-hidden" id="exportCsvBtn" title="Descargar los reportes filtrados en Excel (con logo Sucden)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="M7 10l5 5 5-5"></path><path d="M4 19h16"></path></svg>
           Exportar
         </button>
@@ -926,7 +964,13 @@
       </section>
 
       <section class="panel" id="panel-gallery">
-        <input type="text" class="search" id="gallerySearch" placeholder="Buscar por placa, responsable o número de lotes">
+        <div class="search-row">
+          <input type="text" class="search" id="gallerySearch" placeholder="Buscar por código, placa, responsable o lote">
+          <button type="button" class="refresh-btn" id="refreshBtn" title="Actualizar desde el servidor" aria-label="Actualizar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>
+          </button>
+        </div>
+        <div class="cache-info" id="cacheInfo"></div>
         <div id="galleryList"><div class="loading"><span class="spinner dark"></span>Cargando reportes…</div></div>
       </section>
     </section>
@@ -955,6 +999,7 @@
   <a id="lightboxDl" class="lightbox-dl" href="#" download>Descargar</a>
 </div>
 
+<div class="upload-toast" id="uploadToast" role="status" aria-live="polite"></div>
 <script src="logos.js"></script>
 <script>
   // ---- Logos: se colocan apenas el DOM existe (no dependen de app.js) ----
@@ -963,15 +1008,12 @@
     var header = document.getElementById('headerBadgeImg');
     var boot   = document.getElementById('bootLogoImg');
     var banner = document.getElementById('brandBannerImg');
-    if (header) header.src = window.SUCDEN_LOGOS.squared;
+    if (header) header.src = window.SUCDEN_LOGOS.wide;
     if (boot)   boot.src   = window.SUCDEN_LOGOS.squared;
     if (banner) banner.src = window.SUCDEN_LOGOS.wide;
   });
 
-  // ---- Pantalla de carga (splash) ----
-  // NO se muestra al abrir la página. Solo se activa cuando app.js la llama
-  // (por ejemplo, justo después de que el usuario envía usuario/contraseña),
-  // y se oculta cuando app.js termina esa operación.
+  // ---- Pantalla de carga (splash): app.js la muestra y la oculta ----
   (function () {
     var MIN_VISIBLE_MS = 500;
     var shownAt = 0;
@@ -983,7 +1025,6 @@
       if (p) p.textContent = message || 'Cargando, un momento…';
       shownAt = Date.now();
       el.classList.add('visible');
-      // truco: forzar reflow para que la transición de opacidad sí anime
       void el.offsetWidth;
       el.classList.add('show-opacity');
     };
@@ -1001,10 +1042,7 @@
   })();
 
   // ---- Mascota interactiva: granito de café ----
-  // Estados posibles: 'idle', 'covering' (tapándose los ojos), 'thinking'
-  // (verificando), 'success' (clave correcta) y 'error' (clave incorrecta).
-  // app.js llama a BeanMascot.setState(...) y BeanMascot.glance() en los
-  // momentos oportunos del formulario de login (ver setupLogin en app.js).
+  // Estados: 'idle', 'covering', 'thinking', 'success', 'error'.
   window.BeanMascot = (function () {
     var wrapEl = null, bubbleEl = null, turnEl = null;
     var successMsgs = ['¡Genial!', '¡Muy bien!', '¡Perfecto!'];
@@ -1012,12 +1050,7 @@
 
     function wrap() { return wrapEl || (wrapEl = document.getElementById('beanWidget')); }
     function bubble() { return bubbleEl || (bubbleEl = document.getElementById('beanBubble')); }
-    // El grupo <g class="bean-turn" id="beanTurn"> es el que realmente gira.
-    // IMPORTANTE: la variable --rotate-head se debe fijar en ESTE elemento
-    // (no en #beanWidget) porque la regla CSS ".bean-turn{ --rotate-head:0deg }"
-    // declara un valor propio para el elemento; si se fijara en un ancestro,
-    // ese valor heredado quedaría tapado por la declaración local y la
-    // cabeza nunca giraría.
+    // --rotate-head se fija en #beanTurn (el grupo que realmente gira).
     function turn() { return turnEl || (turnEl = document.getElementById('beanTurn')); }
     function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
@@ -1045,12 +1078,10 @@
       var w = wrap();
       if (!w || w.className.indexOf('state-covering') !== -1 || w.className.indexOf('state-thinking') !== -1) return;
       w.classList.remove('glance');
-      void w.offsetWidth; // reinicia la animación aunque se dispare seguido
+      void w.offsetWidth;
       w.classList.add('glance');
     }
 
-    // Gira el granito según cuánto se ha escrito (como el "perrito" que
-    // gira la cara al escribir el usuario). `chars` = longitud del texto.
     function turnHead(chars) {
       var t = turn();
       if (!t) return;
@@ -1065,6 +1096,11 @@
     return { setState: setState, glance: glance, turnHead: turnHead, resetHead: resetHead };
   })();
 </script>
-<script src="app.js"></script>
+<script src="app.js?v=2"></script>
+<script src="sidebar.js?v=2"></script>
+<script src="dashboard.js?v=2"></script>
+<script src="editar-usuarios.js?v=2"></script>
+<script src="chat.js?v=2"></script>
+
 </body>
 </html>
